@@ -1,27 +1,31 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Joe vs Dan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
 <style>
   :root { color-scheme: dark; --bg:#07080c; --panel:#11131b; --edge:#2a2f40; --fg:#e9edf5; --dim:#8a93a8; --joe:#3456ff; --dan:#ff5a3c; --led:#ff2a1f; }
-  html, body { height: 100%; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; overflow-x: hidden; }
   body { margin: 0; background: var(--bg); color: var(--fg); font: 12px/1.4 "Press Start 2P", ui-monospace, monospace;
          display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
          padding-inline: 16px; box-sizing: border-box; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
   #wrap { width: 100%; max-width: 960px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-  canvas { width: 100%; max-width: 100%; aspect-ratio: 320 / 236; image-rendering: pixelated; image-rendering: crisp-edges;
+  canvas { width: 100%; max-width: 100%; aspect-ratio: 320 / 236; 
            background: #000; border: 2px solid var(--edge); border-radius: 6px; }
   #pad { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   .cluster { display: grid; gap: 8px; }
-  .dpad { grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(2, 56px); }
-  .acts { grid-template-columns: repeat(2, 68px); grid-template-rows: 68px; }
+  .dpad { grid-template-columns: repeat(3, clamp(44px, 13vw, 56px)); grid-template-rows: repeat(2, clamp(44px, 13vw, 56px)); }
+  .acts { grid-template-columns: repeat(3, clamp(56px, 16vw, 68px)); grid-template-rows: clamp(56px, 16vw, 68px); }
   button { font: inherit; font-size: 11px; color: var(--fg); background: var(--panel); border: 2px solid var(--edge);
            border-radius: 10px; padding: 0; touch-action: none; }
   button:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
   button.on { background: #2a3350; }
   .acts button { border-radius: 50%; }
-  #pbtn { border-color: var(--joe); } #kbtn { border-color: var(--dan); }
+  #pbtn { border-color: var(--joe); } #kbtn { border-color: var(--dan); } #sbtn { border-color: #e8ec5a; font-size: 9px; }
   #up { grid-column: 2; } #left { grid-column: 1; grid-row: 2; } #down { grid-column: 2; grid-row: 2; } #right { grid-column: 3; grid-row: 2; }
-  #help { color: var(--dim); font-size: 9px; text-align: center; line-height: 1.8; }
+  #rec { color: #ff4a3d; font-size: 9px; text-align: center; }
+  #help { overflow-wrap: anywhere; color: var(--dim); font-size: 9px; text-align: center; line-height: 1.8; }
   @media (min-width: 900px) and (hover: hover) { #pad { display: none; } }
   @media (orientation: landscape) and (max-height: 520px) {
     body { flex-direction: row; } #wrap { flex-direction: row; max-width: none; height: 100%; }
@@ -30,7 +34,7 @@
   }
 </style>
 <div id="wrap">
-  <canvas id="c" width="320" height="236" aria-label="Joe vs Dan fighting game"></canvas>
+  <canvas id="c" width="1280" height="944" aria-label="Joe vs Dan fighting game"></canvas>
   <div id="pad" aria-label="Touch controls">
     <div class="cluster dpad">
       <button id="up" data-k="up" aria-label="Jump">▲</button>
@@ -41,32 +45,43 @@
     <div class="cluster acts">
       <button id="pbtn" data-k="punch">PUNCH</button>
       <button id="kbtn" data-k="kick">KICK</button>
+      <button id="sbtn" data-k="spin">SPIN</button>
     </div>
   </div>
-  <div id="help">Keys: A/D move · W jump · S crouch · J punch · K kick · Enter start · M sound</div>
+  <div id="rec" hidden>● REC — this round downloads as a video when it ends</div>
+  <div id="help">Keys: A/D move · W jump · S crouch · J punch · K kick · L spin kick · Enter start · M sound</div>
 </div>
 <script>
 (() => {
-const C = document.getElementById('c'), X = C.getContext('2d');
-X.imageSmoothingEnabled = false;
+const C = document.getElementById('c');
+let X = C.getContext('2d');                                                  // swapped to the sprite buffer while a fighter is drawn
+const S = 4;                                                                // canvas renders at 4× the 320×236 game grid
 const W = 320, H = 236, TOP = 42, GROUND = 226;
 
-// ── assets: the stage and the fighters, cut from the original CRT recording ──
-const SPR = {
-  joe: { idle:[0,1], walk:[0,1,2,3], attack:[0], hit:[0] },
-  dan: { idle:[0,1], walk:[0,1,2,3], attack:[0,1], crouch:[0], hit:[0] },
-};
+// ── assets: the stage from the original recording; fighters are drawn in code (rig below) ──
 const img = {}, need = [];
 function load(key, src){ const i = new Image(); i.src = src; img[key] = i; need.push(new Promise(r => { i.onload = r; i.onerror = r; })); }
-load('stage', 'img/stage.png');
-for (const who in SPR) for (const pose in SPR[who]) SPR[who][pose].forEach(k => load(`${who}_${pose}_${k}`, `img/${who}_${pose}_${k}.png`));
-const music = new Audio('original_audio.mp3'); music.loop = true; music.volume = 0.6;
+load('stage', 'img/stage_hd.jpg');
+load('face_joe', 'img/face_iglesias.png'); load('face_dan', 'img/face_echenique.png');   // Wikimedia Commons photos (CC BY-SA), drawn in the sprite style
+//   // player heads: photos drawn in the sprite style (tools/stylize_heads.py)
+load('spr_joe', 'img/sprites_congui.webp'); load('spr_dan', 'img/sprites_iafra.webp'); // bodies: Ken's SSF2 frames, palette-swapped (tools/make_sprites.py)
+const SHEET = {"fw":70,"fh":80,"hd":4,"base":{"walk":75},"frames":{"walk":[{"x":0,"y":0,"head":[22.550442148651868,11.700649544793531],"waist":[24.46153846153846,40.15384615384615],"tilted":13},{"x":70,"y":0,"head":[28.667917120488205,12.004277332433098],"waist":[27.964285714285715,44.67857142857143],"tilted":13},{"x":140,"y":0,"head":[42.483387506483936,13.68607542453394],"waist":[40.47560975609756,47.329268292682926],"tilted":13},{"x":210,"y":0,"head":[44.7083385608278,14.660445489319173],"waist":[42.47560975609756,47.329268292682926],"tilted":13}],"idle":[{"x":0,"y":80,"head":[31.49097015171843,7.841566454422441],"waist":[29.66176470588235,36.98529411764706],"tilted":13},{"x":70,"y":80,"head":[32.604734413710936,7.145336400839486],"waist":[32.05172413793103,35.63793103448276],"tilted":13},{"x":140,"y":80,"head":[32.516600086933195,8.066517508766303],"waist":[31.66176470588235,36.98529411764706],"tilted":13},{"x":210,"y":80,"head":[30.81834887220945,7.281742729329967],"waist":[31.257142857142856,39.15714285714286],"tilted":13}],"punch":[{"x":0,"y":160,"head":[30.364289499500458,6.959116404316369],"waist":[29.114285714285714,36.6],"tilted":13},{"x":70,"y":160,"head":[29.64164116260778,8.536257852506981],"waist":[30.785714285714285,36.67142857142857],"tilted":13},{"x":140,"y":160,"head":[31.389919434715225,7.18406745866023],"waist":[31.114285714285714,36.6],"tilted":13}],"kick":[{"x":0,"y":240,"head":[34.36428949950046,6.959116404316369],"waist":[33.114285714285714,36.6],"tilted":13},{"x":70,"y":240,"head":[31,8],"waist":[31.333333333333332,37.05128205128205]},{"x":140,"y":240,"head":[14,9],"waist":[24.3015873015873,34.888888888888886]},{"x":210,"y":240,"head":[32,8],"waist":[32.333333333333336,37.05128205128205]},{"x":280,"y":240,"head":[34.389919434715225,7.18406745866023],"waist":[34.114285714285714,36.6],"tilted":13}],"spin":[{"x":0,"y":320,"head":[13,26],"waist":[32.75,31.25]},{"x":70,"y":320,"head":[6,27],"waist":[26.529411764705884,40.14705882352941]},{"x":140,"y":320,"head":[7,22],"waist":[25.23076923076923,33.23076923076923]},{"x":210,"y":320,"head":[14,20],"waist":[29.166666666666668,38.333333333333336]},{"x":280,"y":320,"head":[22,17],"waist":[34.0,28.0]}],"jump":[{"x":0,"y":400,"head":[33.58950426497948,10.849725082662566],"waist":[31.746835443037973,39.55696202531646],"tilted":13},{"x":70,"y":400,"head":[29,10],"waist":[27.804878048780488,37.53658536585366]},{"x":140,"y":400,"head":[36,8],"waist":[28.925,38.975]},{"x":210,"y":400,"head":[39,8],"waist":[32.875,32.125]},{"x":280,"y":400,"head":[36,8],"waist":[28.925,38.975]},{"x":350,"y":400,"head":[29,10],"waist":[29.804878048780488,37.53658536585366]},{"x":420,"y":400,"head":[35.58950426497948,10.849725082662566],"waist":[33.74683544303797,39.55696202531646],"tilted":13}],"crouch":[{"x":0,"y":480,"head":[40,34],"waist":[31.82608695652174,59.82608695652174]}]}};
+const NAME = { joe:'IGLESIAS', dan:'ECHENIQUE' };                                   // Real-ESRGAN (x4plus-anime) upscale of the recorded stage
+const music = new Audio('original_audio.mp3'); music.volume = 0.6;
+const chip = new Audio('baute_chip.mp3?v=8711f8f2'); chip.volume = 0.6;              // "Colgando en la IA": Baute's hook as 16-bit chiptune (tools/chiptune.py)
+const KARAOKE = [{"s":0.717,"e":2.936,"w":[["Sabes",[["Sa",0.717],["bes",0.943]]],["que",[["que",1.168]]],["estoy",[["es",1.394],["toy",1.619]]],["colgando",[["col",1.844],["gan",2.069],["do",2.185]]],["en",[["en",2.301]]],["la",[["la",2.417]]],["IA-A-A",[["I",2.533],["A",2.644],["A",2.754],["A",2.845]]]]},{"s":3.441,"e":7.409,"w":[["así",[["a",3.441],["sí",3.663]]],["que",[["que",4.116]]],["no",[["no",5.256]]],["me",[["me",5.699]]],["dejes",[["de",5.932],["jes",6.839]]],["perder",[["per",7.072],["der",7.292]]]]},{"s":8.212,"e":15.063,"w":[["Sabes",[["Sa",8.212],["bes",8.443]]],["que",[["que",9.108]]],["estoy",[["es",9.33],["toy",10.026]]],["colgando",[["col",10.702],["gan",11.388],["do",12.074]]],["en",[["en",12.75]]],["la",[["la",12.981]]],["IA-A-A",[["I",13.446],["A",14.121],["A",14.354],["A",14.575]]]]},{"s":15.261,"e":20.408,"w":[["Te",[["Te",15.261]]],["escribo",[["es",15.937],["cri",16.633],["bo",16.845]]],["poemas",[["po",17.308],["e",17.541],["mas",17.773]]],["con",[["con",18.237]]],["IA",[["I",18.469],["A",18.934]]],["de",[["de",19.167]]],["Afra",[["A",20.095],["fra",20.327]]]]},{"s":20.559,"e":23.735,"w":[["te",[["te",20.559]]],["mando",[["man",20.792],["do",21.024]]],["canciones",[["can",21.256],["cio",21.488],["nes",21.72]]],["y",[["y",22.185]]],["graciosidades",[["gra",22.417],["cio",22.649],["si",23.208],["da",23.43],["des",23.663]]]]},{"s":23.895,"e":27.735,"w":[["te",[["te",23.895]]],["mando",[["man",24.116],["do",24.338]]],["las",[["las",24.454]]],["fotos",[["fo",24.57],["tos",24.686]]],["de",[["de",24.802]]],["Congui",[["Con",25.477],["gui",26.174]]],["en",[["en",26.396]]],["guardia",[["guar",26.617],["dia",27.303]]]]},{"s":27.747,"e":30.881,"w":[["y",[["y",27.747]]],["cuando",[["cuan",27.858],["do",27.968]]],["le",[["le",28.2]]],["diste",[["dis",28.433],["te",28.549]]],["la",[["la",28.665]]],["patada",[["pa",28.781],["ta",28.897],["da",29.119]]],["giratoria",[["gi",29.572],["ra",30.026],["to",30.481],["ria",30.712]]]]},{"s":30.944,"e":34.662,"w":[["y",[["y",30.944]]],["así",[["a",31.061],["sí",31.177]]],["me",[["me",31.398]]],["recuerdes,",[["re",31.62],["cuer",31.736],["des,",31.852]]],["IA_FRA,",[["I",32.084],["A",32.306],["FRA,",32.971]]],["en",[["en",33.668]]],["tu",[["tu",33.9]]],["mente",[["men",34.343],["te",34.565]]]]},{"s":34.786,"e":38.371,"w":[["que",[["que",34.786]]],["mi",[["mi",34.902]]],["corazón",[["co",35.019],["ra",35.251],["zón",35.483]]],["está",[["es",35.715],["tá",35.948]]],["colgando",[["col",36.18],["gan",36.411],["do",36.644]]],["en",[["en",36.876]]],["la",[["la",37.34]]],["IA",[["I",37.805],["A",38.037]]]]},{"s":39.568,"e":42.098,"w":[["¡Cuidado,",[["¡Cui",39.568],["da",40.021],["do,",40.253]]],["cuidado!",[["cui",41.393],["da",41.847],["do!",42.047]]]]},{"s":42.28,"e":46.089,"w":[["que",[["que",42.28]]],["mi",[["mi",42.512]]],["corazón",[["co",42.744],["ra",42.976],["zón",43.208]]],["está",[["es",43.441],["tá",43.673]]],["colgando",[["col",43.905],["gan",44.137],["do",44.37]]],["en",[["en",44.602]]],["la",[["la",44.834]]],["IA-A-A",[["I",45.066],["A",45.182],["A",45.298],["A",45.694]]]]}];   // parody lines on the record's phrasing (tools/karaoke.py)
+let track = chip;                                                          // jukebox: the chip song, then the original tune, alternating
+music.addEventListener('ended', () => { track = chip; chip.currentTime = 0; if (soundOn && state !== 'over') chip.play().catch(()=>{}); });
+chip.addEventListener('ended', () => { track = music; music.currentTime = 0; if (soundOn && state !== 'over') music.play().catch(()=>{}); });
+const CHIP_START = 16.38;                                                  // each match opens on 'te envío poemas…' (one beat of lead-in)
+function musicStart(){ music.pause(); track = chip; chip.currentTime = CHIP_START; chip.play().catch(()=>{}); }
+function musicPause(){ music.pause(); chip.pause(); }
 let soundOn = true;
 
 // ── input: keyboard + touch buttons share one key map ──
-const K = { left:false, right:false, up:false, down:false, punch:false, kick:false };
-const edge = { punch:false, kick:false, up:false };
-const keymap = { KeyA:'left', ArrowLeft:'left', KeyD:'right', ArrowRight:'right', KeyW:'up', ArrowUp:'up', KeyS:'down', ArrowDown:'down', KeyJ:'punch', KeyK:'kick' };
+const K = { left:false, right:false, up:false, down:false, punch:false, kick:false, spin:false };
+const edge = { punch:false, kick:false, spin:false, up:false };
+const keymap = { KeyA:'left', ArrowLeft:'left', KeyD:'right', ArrowRight:'right', KeyW:'up', ArrowUp:'up', KeyS:'down', ArrowDown:'down', KeyJ:'punch', KeyK:'kick', KeyL:'spin' };
 function press(k, v){ if (v && !K[k] && k in edge) edge[k] = true; K[k] = v; }
 addEventListener('keydown', e => { if (keymap[e.code]) { press(keymap[e.code], true); e.preventDefault(); }
   if (e.code === 'Enter' || e.code === 'Space') startOrNext(); if (e.code === 'KeyM') toggleSound(); });
@@ -78,19 +93,45 @@ document.querySelectorAll('#pad button').forEach(b => {
   b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off);
 });
 C.addEventListener('pointerdown', () => startOrNext());
-function toggleSound(){ soundOn = !soundOn; if (!soundOn) music.pause(); else if (state === 'fight') music.play().catch(()=>{}); }
+function toggleSound(){ soundOn = !soundOn; if (!soundOn) musicPause(); else if (state === 'fight') track.play().catch(()=>{}); }
 
 // ── fighters ──
-const ATK = { punch:{ dur:14, hit:[4,8], reach:30, dmg:7, lunge:5 }, kick:{ dur:20, hit:[7,12], reach:40, dmg:11, lunge:9 } };
+const SPEED = { joe:1, dan:1.5 }, POWER = { joe:1, dan:1.25 };             // IA_FRA: 50% faster, hits 25% harder
+const ATK = { punch:{ dur:14, hit:[4,8], reach:30, dmg:7, lunge:5 }, kick:{ dur:20, hit:[7,12], reach:40, dmg:11, lunge:9 },
+  spin:{ dur:42, hit:[15,24], reach:44, dmg:13, lunge:6, turn:6, cool:30, rate:1, high:true } };   // spinning back kick: half turn, rear leg straight back, one strong hit
 function fighter(who, x, dir){ return { who, x, y:GROUND, vx:0, vy:0, dir, hp:100, state:'idle', t:0, atk:null, hitDone:false, frame:0, flash:0, score:0, wins:0, crouch:false }; }
 let joe, dan, timer, round, state = 'title', banner = '', bannerT = 0, sparks = [], ai = { t:0, want:'idle' };
 
 function newRound(){ joe = Object.assign(joe || fighter('joe'), { x:90, y:GROUND, vx:0, vy:0, dir:1, hp:100, state:'idle', t:0, atk:null, flash:0 });
   dan = Object.assign(dan || fighter('dan'), { x:230, y:GROUND, vx:0, vy:0, dir:-1, hp:100, state:'idle', t:0, atk:null, flash:0 });
-  timer = 99; banner = `ROUND ${round}`; bannerT = 90; state = 'intro'; }
+  timer = 99; banner = `ROUND ${round}`; bannerT = 90; state = 'intro'; if (!SHOWCASE) { recStop(); recStart(); } }
+// ── recording: every ROUND is saved as one video (canvas + music), downloaded when the round ends ──
+let rec = null, AC = null, AD = null;
+function audioTap(){                                                       // route the music through Web Audio so it can be recorded
+  if (!AD) try { AC = new AudioContext(); const src = AC.createMediaElementSource(music), src2 = AC.createMediaElementSource(chip); AD = AC.createMediaStreamDestination();
+                 for (const x of [src, src2]) { x.connect(AC.destination); x.connect(AD); } } catch (e) { AD = null; }
+  if (AC && AC.state === 'suspended') AC.resume();
+  return AD;
+}
+function recStart(){
+  if (!window.MediaRecorder || !C.captureStream) return;
+  try {
+    const st = C.captureStream(60), ad = audioTap();
+    if (ad) ad.stream.getAudioTracks().forEach(t => st.addTrack(t));
+    const mime = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m));
+    const r = new MediaRecorder(st, { mimeType: mime, videoBitsPerSecond: 8e6 }), chunks = [];
+    r.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    r.onstop = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(chunks, { type: mime }));
+      a.download = `iglesias_vs_echenique_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.${mime.startsWith('video/mp4') ? 'mp4' : 'webm'}`; a.click(); };
+    r.start(1000); rec = r; document.getElementById('rec').hidden = false;
+  } catch (e) { rec = null; }
+}
+function recStop(){ if (rec && rec.state !== 'inactive') rec.stop(); rec = null; document.getElementById('rec').hidden = true; }
 function startOrNext(){
-  if (state === 'title' || state === 'over') { joe = fighter('joe', 90, 1); dan = fighter('dan', 230, -1); round = 1; newRound();
-    if (soundOn) { music.currentTime = 0; music.play().catch(()=>{}); } }
+  if (state === 'title' || state === 'over') { joe = fighter('joe', 90, 1); dan = fighter('dan', 230, -1); round = DEMO ? DEMO_ROUND : 1;
+    if (DEMO) { dan.wins = round >= 2 ? 1 : 0; joe.wins = round >= 3 ? 1 : 0; dan.score = 6000 * dan.wins; joe.score = 6000 * joe.wins; } newRound();   // demo: round 2 = 0-1, round 3 = 1-1
+    if (soundOn) musicStart();
+    audioTap(); if (SHOWCASE) recStart(); }
 }
 
 function control(f, o, inp){
@@ -98,8 +139,12 @@ function control(f, o, inp){
   if (f.state === 'ko') return;
   if (f.state === 'hit') { if (--f.t <= 0) f.state = 'idle'; return; }
   if (f.state === 'attack') {
-    f.t++; const a = ATK[f.atk];
-    if (f.t >= a.hit[0] && f.t <= a.hit[1] && !f.hitDone && Math.abs(o.x - f.x) < a.reach + 14 && Math.abs(o.y - f.y) < 40 && o.state !== 'ko') {
+    const a = ATK[f.atk]; f.t += a.rate || SPEED[f.who];                      // the back kick plays at one speed for both, so it reads
+    if (a.multi) {                                                         // spin kick: one hit per window crossed this tick
+      const t0 = f.t - (a.rate || SPEED[f.who]);
+      for (const m of a.multi) if (t0 < m && f.t >= m && Math.abs(o.x - f.x) < a.reach + 14 && o.state !== 'ko') land(f, o, a);
+    } else if (f.t >= a.hit[0] && f.t <= a.hit[1] && !f.hitDone && Math.abs(o.x - f.x) < a.reach + 14 && Math.abs(o.y - f.y) < 40 && o.state !== 'ko'
+        && !((f.atk === 'punch' || f.atk === 'spin') && o.state === 'crouch')) {          // punches and the high reverse kick go over a crouch
       f.hitDone = true; land(f, o, a);
     }
     if (f.t >= a.dur) f.state = 'idle';
@@ -107,38 +152,65 @@ function control(f, o, inp){
   }
   f.crouch = inp.down && f.y >= GROUND;
   const onGround = f.y >= GROUND;
+  if (onGround && inp.spinE && !(f.cool > 0)) { f.atk = 'spin'; f.state = 'attack'; f.t = 0; f.hitDone = false; f.vx = 0; f.cool = ATK.spin.cool; return; }
   if (onGround && (inp.punchE || inp.kickE)) { f.atk = inp.kickE ? 'kick' : 'punch'; f.state = 'attack'; f.t = 0; f.hitDone = false; f.vx = 0; return; }
-  if (onGround && inp.upE) { f.vy = -6.2; f.vx = (inp.right ? 1.6 : inp.left ? -1.6 : 0); }
-  if (onGround && !f.crouch) f.vx = inp.right ? 1.5 : inp.left ? -1.5 : 0;
+  if (onGround && inp.upE) { f.vy = -6.2; f.vx = (inp.right ? 1.6 : inp.left ? -1.6 : 0) * SPEED[f.who]; }
+  if (onGround && !f.crouch) f.vx = (inp.right ? 1.5 : inp.left ? -1.5 : 0) * SPEED[f.who];
   if (f.crouch) f.vx = 0;
   f.state = !onGround ? 'jump' : f.crouch ? 'crouch' : (f.vx ? 'walk' : 'idle');
 }
 function land(f, o, a){
   const blocked = o.crouch && f.atk === 'punch' && o.who === 'dan' ? false : false;
-  o.hp = Math.max(0, o.hp - a.dmg); o.state = 'hit'; o.t = 12; o.vx = f.dir * 2.2; o.flash = 8; f.score += 100;
-  sparks.push({ x: f.x + f.dir * (a.reach - 6), y: f.y - (f.atk === 'kick' ? 62 : 78), t: 12 });
+  o.hp = Math.max(0, o.hp - Math.round(a.dmg * POWER[f.who])); o.state = 'hit'; o.t = 12; o.vx = f.dir * 2.2; o.flash = 8; f.score += 100;
+  sparks.push({ x: f.x + f.dir * (a.reach - 6), y: f.y - (f.atk === 'kick' ? 52 : f.atk === 'spin' ? 84 : 76), t: 12 });
   if (o.hp <= 0) { o.state = 'ko'; o.vy = -4; o.vx = f.dir * 2.5; f.score += 5000; endRound(f); }
 }
 function physics(f){
   f.vy += 0.34; f.y += f.vy; if (f.y >= GROUND) { f.y = GROUND; f.vy = 0; if (f.state === 'ko' || f.state === 'hit') f.vx *= 0.8; }
   if (f.state === 'attack' && f.t < 5) f.x += f.dir * ATK[f.atk].lunge / 5;
+  if (f.state === 'attack' && ATK[f.atk].glide) f.x += f.dir * ATK[f.atk].glide * SPEED[f.who];
+  if (f.cool > 0) f.cool--;
   f.x += f.vx; f.x = Math.max(18, Math.min(W - 18, f.x));
   if (f.flash > 0) f.flash--;
 }
 function endRound(winner){ if (state !== 'fight') return;
-  if (winner) winner.wins++; banner = winner ? `${winner.who.toUpperCase()} WINS` : 'DRAW'; bannerT = 150; state = 'ko'; }
+  if (winner) winner.wins++; banner = winner ? `${NAME[winner.who]} WINS` : 'DRAW'; bannerT = 150; state = 'ko'; }
 
-// ── CPU: Dan approaches, attacks in range, sometimes jumps or crouches ──
+// ── CPU (IA_FRA): keeps kick range, answers the player's attacks, punishes whiffs ──
 function danAI(){
-  const d = Math.abs(joe.x - dan.x), inp = { left:false, right:false, down:false, upE:false, punchE:false, kickE:false };
-  if (--ai.t <= 0) { ai.t = 18 + Math.random() * 30 | 0;
-    ai.want = d > 60 ? (Math.random() < .8 ? 'approach' : 'jump') : d > 34 ? (Math.random() < .5 ? 'kick' : 'approach') : ['punch','kick','crouch','back'][Math.random() * 4 | 0]; }
+  const d = Math.abs(joe.x - dan.x), inp = { left:false, right:false, down:false, upE:false, punchE:false, kickE:false, spinE:false };
   const toward = joe.x > dan.x ? 'right' : 'left', away = toward === 'right' ? 'left' : 'right';
+  const threat = joe.state === 'attack' && joe.t < ATK[joe.atk].hit[0] && d < ATK[joe.atk].reach + 18;
+  const whiff = joe.state === 'attack' && joe.t > ATK[joe.atk].hit[1];                 // player is recovering: free hit
+  if (threat && ai.react !== joe) { ai.react = joe;                                    // see the wind-up, react once
+    if (Math.random() < .8) { ai.want = joe.atk === 'punch' ? 'crouch' : 'back'; ai.t = 12; } }       // duck punches, step out of kicks
+  if (joe.state !== 'attack') ai.react = null;
+  if (whiff && d < 60 && Math.random() < .9) { if (d < 44) { inp.punchE = true; return inp; } if (Math.random() < .5) { inp.kickE = true; return inp; } inp[toward] = true; }   // punch if close, else kick or step in
+  if (--ai.t <= 0) { ai.t = 8 + Math.random() * 18 | 0;
+    ai.want = d > 70 ? (Math.random() < .85 ? 'approach' : 'jump')
+            : d > 46 ? ['punch', 'spin', 'spin', 'spin', 'kick', 'approach', 'jump'][Math.random() * 7 | 0]  // 'punch'/'spin' walk in first
+            : ['punch', 'punch', 'spin', 'spin', 'spin', 'kick'][Math.random() * 6 | 0]; }
   if (ai.want === 'approach') inp[toward] = true;
-  if (ai.want === 'back') inp[away] = true;
+  if (ai.want === 'back') { inp[away] = true; if (d > 50) ai.want = 'kick'; }
   if (ai.want === 'crouch') inp.down = true;
-  if (ai.want === 'jump') { inp.upE = true; inp[toward] = true; ai.want = 'approach'; }
-  if ((ai.want === 'punch' || ai.want === 'kick') && d < 48) { inp[ai.want + 'E'] = true; ai.want = 'idle'; }
+  if (ai.want === 'jump') { inp.upE = true; inp[toward] = true; ai.want = 'punch'; }
+  if (ai.want === 'spin') { if (d < 60 && !(dan.cool > 0)) { inp.spinE = true; ai.want = 'idle'; } else inp[toward] = true; }
+  if (ai.want === 'kick' && d < 56) { inp.kickE = true; ai.want = 'idle'; }
+  else if (ai.want === 'punch' && d < 44) { inp.punchE = true; ai.want = 'idle'; }
+  else if ((ai.want === 'kick' && d >= 56) || (ai.want === 'punch' && d >= 44)) inp[toward] = true;
+  return inp;
+}
+
+// ── demo (index.html#demo): the CPU also plays Congui, so a match can be recorded unattended ──
+const SHOWCASE = location.hash === '#showcase';                              // #showcase: CPU vs CPU, the whole match in one recording
+const DEMO = location.hash.startsWith('#demo') || SHOWCASE, DEMO_ROUND = +location.hash.slice(5) || 1;   // #demo2 = record round 2
+function congBot(){
+  const d = Math.abs(dan.x - joe.x), inp = { left:false, right:false, down:false, upE:false, punchE:false, kickE:false, spinE:false };
+  const toward = dan.x > joe.x ? 'right' : 'left', away = toward === 'right' ? 'left' : 'right';
+  if (dan.state === 'attack' && dan.t < 4 && d < 50 && Math.random() < .3) { inp[Math.random() < .5 ? 'down' : away] = true; return inp; }
+  if (d > 50) { inp[toward] = true; if (Math.random() < .01) inp.upE = true; }
+  else if (Math.random() < .05) inp.spinE = true;
+  else if (Math.random() < .09) inp[d < 42 && Math.random() < .5 ? 'punchE' : 'kickE'] = true;
   return inp;
 }
 
@@ -147,14 +219,16 @@ let last = 0, secT = 0;
 function step(){
   if (state === 'intro') { if (--bannerT <= 0) { banner = 'FIGHT'; bannerT = 40; state = 'fight'; } }
   else if (state === 'fight') {
-    const pin = { left:K.left, right:K.right, down:K.down, upE:edge.up, punchE:edge.punch, kickE:edge.kick };
+    const pin = DEMO ? congBot() : { left:K.left, right:K.right, down:K.down, upE:edge.up, punchE:edge.punch, kickE:edge.kick, spinE:edge.spin };
     control(joe, dan, pin); control(dan, joe, danAI());
     if (++secT >= 60) { secT = 0; timer--; if (timer <= 0) { timer = 0; endRound(joe.hp === dan.hp ? null : joe.hp > dan.hp ? joe : dan); } }
   } else if (state === 'ko') {
-    if (--bannerT <= 0) { if (joe.wins === 2 || dan.wins === 2) { state = 'over'; banner = joe.wins === 2 ? 'JOE WINS THE MATCH' : 'DAN WINS THE MATCH'; music.pause(); }
+    if (--bannerT <= 0) { if (!SHOWCASE) recStop();
+                          if (DEMO && !SHOWCASE) { state = 'over'; banner = `${NAME[joe.wins ? 'joe' : 'dan']} WINS`; musicPause(); }      // demo = one round
+                          else if (joe.wins === 2 || dan.wins === 2) { state = 'over'; banner = `${NAME[joe.wins === 2 ? 'joe' : 'dan']} WINS THE MATCH`; if (SHOWCASE) setTimeout(() => { recStop(); musicPause(); }, 3500); else musicPause(); }
                           else { round++; newRound(); } }
   }
-  edge.up = edge.punch = edge.kick = false;
+  edge.up = edge.punch = edge.kick = edge.spin = false;
   if (state !== 'title') { physics(joe); physics(dan);
     if (state === 'fight' && Math.abs(joe.x - dan.x) < 26) { const push = (26 - Math.abs(joe.x - dan.x)) / 2 * (joe.x < dan.x ? 1 : -1); joe.x -= push; dan.x += push; } }
   if (bannerT > 0 && state === 'fight') bannerT--;
@@ -162,67 +236,384 @@ function step(){
 }
 
 // ── drawing ──
-function pose(f){
-  const s = SPR[f.who];
-  if (f.state === 'attack') return s.attack[f.atk === 'kick' ? s.attack.length - 1 : 0];
-  if (f.state === 'hit' || f.state === 'ko') return ['hit', 0];
-  if (f.state === 'crouch' && s.crouch) return ['crouch', 0];
-  if (f.state === 'walk') return ['walk', (performance.now() / 110 | 0) % s.walk.length];
-  return ['idle', (performance.now() / 400 | 0) % s.idle.length];
+// Fighters are a joint rig: angles in degrees from straight down, positive = toward the facing side.
+// Each part is outlined then filled, so the silhouette stays crisp in every pose.
+const OL = '#15121d', D = Math.PI / 180;
+const LOOK = {
+  joe: { skin:'#e0a684', skinD:'#b07558', top:'#eeece8', topD:'#b8b4ae', pants:'#8db0d4', pantsD:'#5b7ea6', belt:'#3b3331', boot:'#e0a684', shoe:'#f4f4f4',
+         hair:'#3a2a22', hairD:'#1f1612', wrist:null, style:'short', broad:12, tee:true, shortsAt:0.18, matte:true, faceDx:3, headScale:1.12, neck:'#c98a66' },   // Congui: white tee + black pocket, denim shorts
+  dan: { skin:'#ecb892', skinD:'#b98060', top:'#17151d', topD:'#45404f', pants:'#3f64b4', pantsD:'#26427e', belt:'#6b4a2b', boot:'#1d1a22', shoe:'#1d1a22',
+         hair:'#e8c983', hairD:'#b8954c', wrist:null, style:'long', broad:10, necklace:'#dcae3e', matte:true, headScale:1.3, faceDx:2, neck:'#dba684', headUp:-3.5 },   // Afra Blanco: black V-neck, gold necklace, jeans
+};
+const PO = {
+  idle:   { lean:8,   fT:26,  fS:-4,  bT:-22, bS:-12, fU:40,  fF:160, bU:18,  bF:150, head:0 },
+  crouch: { lean:24,  fT:80,  fS:-14, bT:10,  bS:-76, fU:52,  fF:166, bU:30,  bF:150, head:-8 },
+  jump:   { lean:10,  fT:76,  fS:-38, bT:40,  bS:-62, fU:62,  fF:150, bU:-24, bF:60,  head:0 },
+  hit:    { lean:-24, fT:16,  fS:2,   bT:-30, bS:-16, fU:-50, fF:-95, bU:-65, bF:-120, head:-22 },
+  punch:  { lean:16,  fT:34,  fS:-2,  bT:-30, bS:-14, fU:92,  fF:90,  bU:30,  bF:162, head:4 },
+  kick:   { lean:-18, fT:102, fS:94,  bT:-4,  bS:-4,  fU:40,  fF:170, bU:-12, bF:120, head:2 },
+  twist:  { lean:25,  fT:12,  fS:0,   bT:45,  bS:-10, fU:-20, fF:40,  bU:40,  bF:120, head:-12 },  // Ken's reverse kick 1: shoulders turn, body dips
+  chamber:{ lean:50,  fT:10,  fS:-4,  bT:-115,bS:-20, fU:70,  fF:100, bU:-20, bF:60,  head:-28 },  // 2: back to the opponent, torso tipping, heel rising behind
+  spin:   { lean:65,  fT:14,  fS:-2,  bT:-150,bS:-152,fU:80,  fF:90,  bU:-40, bF:-10, head:-38 },  // 3: head low, leg swung up to head height — one diagonal line
+};
+const L = { thigh:24, shin:24, torso:31, upper:17, fore:16, head:8.5 };
+const mix = (a, b, e) => { const o = {}; for (const k in a) o[k] = a[k] + (b[k] - a[k]) * e; return o; };
+const ang = a => [Math.sin(a * D), Math.cos(a * D)];
+const add = (p, a, l) => { const [sx, cy] = ang(a); return [p[0] + sx * l, p[1] + cy * l]; };
+
+function poseOf(f){
+  const now = performance.now() / 1000;
+  if (f.state === 'attack' && f.atk === 'spin') { const t = f.t;          // key poses, SF2-style: twist | snap round | chamber → kick → chamber | snap back
+    return t < 6 ? mix(PO.idle, PO.twist, t / 6) : t < 12 ? mix(PO.twist, PO.chamber, Math.min(1, (t - 6) / 3)) : t < 16 ? mix(PO.chamber, PO.spin, (t - 12) / 4)
+         : t <= 27 ? PO.spin : t < 34 ? mix(PO.spin, PO.chamber, (t - 27) / 7) : mix(PO.twist, PO.idle, (t - 34) / 8); }
+  if (f.state === 'attack') { const a = ATK[f.atk], t = f.t;
+    const e = t < a.hit[0] ? t / a.hit[0] : t <= a.hit[1] ? 1 : Math.max(0, 1 - (t - a.hit[1]) / (a.dur - a.hit[1]));
+    return mix(PO.idle, PO[f.atk], e); }
+  if (f.state === 'hit' || f.state === 'ko') return PO.hit;
+  if (f.state === 'crouch') return PO.crouch;
+  if (f.state === 'jump') return PO.jump;
+  if (f.state === 'walk') { const s = Math.sin(now * 10), p = { ...PO.idle };
+    p.fT = 4 + 26 * s; p.bT = 4 - 26 * s; p.fS = p.fT - 10 - 22 * Math.max(0, -s); p.bS = p.bT - 10 - 22 * Math.max(0, s);
+    p.fU += 6 * s; p.bU -= 6 * s; return p; }
+  const b = Math.sin(now * 4.2) * 3, p = { ...PO.idle }; p.fT += b; p.bT -= b; p.fS -= b; p.bS += b; p.fF += b; return p;
 }
-function spriteOf(f){
-  const s = SPR[f.who];
-  let p = f.state === 'attack' ? ['attack', f.atk === 'kick' ? s.attack.length - 1 : 0]
-        : (f.state === 'hit' || f.state === 'ko') ? ['hit', 0]
-        : (f.state === 'crouch' && s.crouch) ? ['crouch', 0]
-        : f.state === 'walk' ? ['walk', (performance.now() / 110 | 0) % s.walk.length]
-        : ['idle', (performance.now() / 400 | 0) % s.idle.length];
-  return img[`${f.who}_${p[0]}_${s[p[0]][p[1]]}`];
+function solve(p){
+  const hip = [0, 0];
+  const neck = [Math.sin(p.lean * D) * L.torso, -Math.cos(p.lean * D) * L.torso];
+  const sh = [neck[0] - Math.sin(p.lean * D) * 4, neck[1] + Math.cos(p.lean * D) * 4];
+  const head = [neck[0] + Math.sin((p.lean + p.head) * D) * (L.head + 3), neck[1] - Math.cos((p.lean + p.head) * D) * (L.head + 3)];
+  const leg = (T, S, dx) => { const h = [hip[0] + dx, hip[1]], k = add(h, T, L.thigh); return [h, k, add(k, S, L.shin), S]; };
+  const arm = (U, F, dx) => { const s0 = [sh[0] + dx, sh[1]], e = add(s0, U, L.upper); return [s0, e, add(e, F, L.fore)]; };
+  const J = { hip, neck, sh, head, lean:p.lean, headA:p.lean + p.head,
+    fl: leg(p.fT, p.fS, 3), bl: leg(p.bT, p.bS, -3), fa: arm(p.fU, p.fF, 3), ba: arm(p.bU, p.bF, -4) };
+  const drop = -Math.max(J.fl[2][1], J.bl[2][1]);                          // feet on the ground
+  const mv = q => { q[1] += drop; };
+  [hip, neck, sh, head, ...J.fl.slice(0, 3), ...J.bl.slice(0, 3), ...J.fa, ...J.ba].forEach(mv);
+  return J;
+}
+let WHITE = false, HEADFLIP = false;                                         // HEADFLIP: body turned away, face still on the opponent
+const col = c => WHITE ? '#ffffff' : c;
+// ── SF2-style shading: every part = shadow rim (back-bottom) + base + lit rim (front-top) + dark outline ──
+const LD = [-0.45, 0.89], TONE = new Map();                                // LD: direction the light travels, in facing space
+function tone(c, k){ const key = c + k; if (!TONE.has(key)) { const n = parseInt(c.slice(1), 16), f = v => k > 0 ? v + (255 - v) * k : v * (1 + k);
+  TONE.set(key, `rgb(${f(n >> 16) | 0},${f(n >> 8 & 255) | 0},${f(n & 255) | 0})`); } return TONE.get(key); }
+function shaded(path, c){
+  const base = col(c), sh = WHITE ? '#d0d0d0' : tone(c, -0.5), hi = WHITE ? '#ffffff' : tone(c, 0.5);
+  X.beginPath(); path(0, 0); X.fillStyle = sh; X.fill();
+  X.save(); X.clip();
+  X.beginPath(); path(-LD[0] * 3, -LD[1] * 3); X.fillStyle = base; X.fill();                     // leaves the shadow rim
+  X.beginPath(); path(0, 0); path(LD[0] * 1.6, LD[1] * 1.6); X.fillStyle = hi; X.fill('evenodd'); // lit rim = shape minus itself nudged away from the light
+  X.restore();
+  X.beginPath(); path(0, 0); X.lineJoin = 'round'; X.strokeStyle = OL; X.lineWidth = 1.3; X.stroke();
+}
+const capsule = (a, b, r0, rm, r1) => (dx, dy) => {                        // limb with a muscle bulge 40% along
+  const ang = Math.atan2(b[1] - a[1], b[0] - a[0]), nx = -Math.sin(ang), ny = Math.cos(ang);
+  const A = [a[0] + dx, a[1] + dy], B = [b[0] + dx, b[1] + dy], M = [A[0] + (B[0] - A[0]) * .4, A[1] + (B[1] - A[1]) * .4];
+  X.moveTo(A[0] + nx * r0, A[1] + ny * r0); X.quadraticCurveTo(M[0] + nx * rm * 1.2, M[1] + ny * rm * 1.2, B[0] + nx * r1, B[1] + ny * r1);
+  X.arc(B[0], B[1], r1, ang + Math.PI / 2, ang - Math.PI / 2, true);
+  X.quadraticCurveTo(M[0] - nx * rm * 1.2, M[1] - ny * rm * 1.2, A[0] - nx * r0, A[1] - ny * r0);
+  X.arc(A[0], A[1], r0, ang - Math.PI / 2, ang - 3 * Math.PI / 2, true); X.closePath();
+};
+const polyP = pts => (dx, dy) => { pts.forEach((q, i) => i ? X.lineTo(q[0] + dx, q[1] + dy) : X.moveTo(q[0] + dx, q[1] + dy)); X.closePath(); };
+const circP = (c, r) => (dx, dy) => { X.moveTo(c[0] + dx + r, c[1] + dy); X.arc(c[0] + dx, c[1] + dy, r, 0, Math.PI * 2); };
+function seg(a, b, w, c){ shaded(capsule(a, b, w / 2, w / 2, w / 2), c); }
+function limb(a, b, w0, wm, w1, c){ shaded(capsule(a, b, w0 / 2, wm / 2, w1 / 2), c); }
+function chain(pts, ws, cs){ for (let i = 0; i < ws.length; i++) limb(pts[i], pts[i + 1], ws[i], ws[i] * 1.1, ws[i] * .85, cs[i]); }
+function blob(pts, fill){ shaded(polyP(pts), fill); }
+function circ(c, r, fill){ shaded(circP(c, r), fill); }
+const lerp2 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+
+function drawLeg(l, k){
+  const [h, kn, an, S] = l, lowC = k.boot ? [k.pants, k.boot] : [k.pants, k.pants];
+  const mid = k.boot ? lerp2(kn, an, k.shortsAt || 0.45) : null;
+  limb(h, kn, 13.5, 15, 11, k.pants);                                       // thigh
+  if (k.boot) { limb(kn, mid, 11, 11.5, 10.5, k.pants); limb(mid, an, 10.5, 11, 8, k.boot); }   // cuff, then calf / boot
+  else limb(kn, an, 11, 12, 8, lowC[1]);
+  const fd = [Math.cos(S * D), -Math.sin(S * D)];                          // the foot points 90° from the shin, forward
+  seg([an[0] - fd[0] * 1.5, an[1] - fd[1] * 1.5 + 1], [an[0] + fd[0] * 8, an[1] + fd[1] * 8 + 1], 6, k.shoe);
+}
+function drawArm(a, k, front){
+  const [s0, e, h] = a, top = k.top || k.skin;
+  const sl = lerp2(s0, e, 0.55);                                            // short sleeve over the shoulder, bare biceps below
+  limb(s0, e, 10.5, 12, 9, k.skin); limb(s0, sl, 11.5, 12.5, 10.5, top);
+  limb(e, h, 9.5, 10.5, 7.5, k.skin);                                       // forearm, thick at the elbow
+  if (k.wrist) seg(lerp2(e, h, 0.7), lerp2(e, h, 0.95), 8.6, k.wrist);
+  circ(h, front ? 6.2 : 5.6, k.skin);
+}
+function drawTorso(J, k){
+  const { hip, neck } = J, n = [Math.cos(J.lean * D), Math.sin(J.lean * D)];
+  const sw = k.broad, ww = 8.5;
+  const pts = [[neck[0] - n[0] * sw, neck[1] - n[1] * sw + 2], [neck[0] + n[0] * sw, neck[1] + n[1] * sw + 2],
+               [hip[0] + n[0] * ww, hip[1] + n[1] * ww], [hip[0] - n[0] * ww, hip[1] - n[1] * ww]];
+  blob(pts, k.top || k.skin);
+  X.lineCap = 'round'; X.lineWidth = 1.2; X.strokeStyle = col(k.top ? k.topD : k.skinD);
+  const at = t => lerp2(neck, hip, t);
+  if (!k.top) {                                                            // bare chest: pecs + abs
+    const c = at(0.3); X.beginPath(); X.moveTo(c[0] - n[0] * 8, c[1] - n[1] * 8 + 3); X.quadraticCurveTo(c[0], c[1] + 4, c[0] + n[0] * 8, c[1] + n[1] * 8 + 3); X.stroke();
+    const a1 = at(0.45), a2 = at(0.85); X.beginPath(); X.moveTo(...a1); X.lineTo(...a2); X.stroke();
+    for (const t of [0.58, 0.72]) { const q = at(t); X.beginPath(); X.moveTo(q[0] - n[0] * 4, q[1] - n[1] * 4); X.lineTo(q[0] + n[0] * 4, q[1] + n[1] * 4); X.stroke(); }
+  } else if (k.tee) {                                                     // T-shirt: crew neck + black chest pocket
+    const q = at(0.04); X.beginPath(); X.arc(q[0], q[1] + 1, 4, 0, Math.PI); X.fillStyle = col(k.skin); X.fill();
+    X.strokeStyle = col(k.topD); X.lineWidth = 1; X.stroke();
+    const pk = at(0.3); X.save(); X.translate(pk[0] + n[0] * 3, pk[1] + n[1] * 3); X.rotate(J.lean * D);
+    X.fillStyle = col('#1d1b20'); X.fillRect(0, -3, 6, 7); X.restore();
+  } else {                                                                 // V-neck top
+    const v = at(0.42); blob([[neck[0] - n[0] * 5, neck[1] - n[1] * 5 + 2], [neck[0] + n[0] * 5, neck[1] + n[1] * 5 + 2], v], k.skin);
+    if (k.necklace) { const q = at(0.14); X.strokeStyle = col(k.necklace); X.lineWidth = 1.4;
+      X.beginPath(); X.moveTo(q[0] - n[0] * 4, q[1] - n[1] * 4); X.quadraticCurveTo(q[0], q[1] + 3.5, q[0] + n[0] * 4, q[1] + n[1] * 4); X.stroke(); }
+    else { X.strokeStyle = col(k.topD); X.beginPath(); X.moveTo(...v); X.lineTo(...at(0.9)); X.stroke(); }
+  }
+  const b = at(0.93); seg([b[0] - n[0] * 9, b[1] - n[1] * 9], [b[0] + n[0] * 9, b[1] + n[1] * 9], 4.5, k.belt);
+  if (k.style === 'spikes') { const t = [b[0] - n[0] * 7, b[1] - n[1] * 7], sw2 = Math.sin(performance.now() / 160) * 3;
+    seg(t, [t[0] - 7, t[1] + 9 + sw2], 3, k.belt); seg(t, [t[0] - 10, t[1] + 6 - sw2], 3, k.belt); }
+}
+function drawHead(J, k, who){
+  const fi = img['face_' + who];
+  if (fi && fi.width) {                                                    // big photo head, caricature-style
+    const a = J.headA * D, z = k.headScale || 1, hw = 11 * z, hh = 13 * z, c = [J.neck[0] + Math.sin(a) * (hh - 1), J.neck[1] - Math.cos(a) * (hh - 1)];
+    seg(J.neck, lerp2(J.neck, c, 0.3), 6, k.skin);
+    X.save(); X.translate(...c); X.rotate(a); if (HEADFLIP) X.scale(-1, 1);
+    if (!k.matte) { X.beginPath(); X.ellipse(0, 0, hw + 1.1, hh + 1.1, 0, 0, 7); X.fillStyle = OL; X.fill(); }
+    if (WHITE) { X.beginPath(); X.ellipse(0, 0, hw, hh, 0, 0, 7); X.fillStyle = '#fff'; X.fill(); }
+    else X.drawImage(fi, -hw + (k.faceDx || 0), -hh, hw * 2, hh * 2);      // faceDx: profile photos sit forward of the neck
+    X.restore(); return;
+  }
+  const c = J.head, r = L.head, a = J.headA * D;
+  const R = (x, y) => [c[0] + x * Math.cos(a) - y * Math.sin(a), c[1] + x * Math.sin(a) + y * Math.cos(a)];
+  seg(J.neck, lerp2(J.neck, c, 0.5), 6, k.skin);
+  if (k.style === 'back')                                                  // swept-back blond mane
+    blob([R(-r - 1, 2), R(-r - 8, -2), R(-r - 3, -5), R(-r - 9, -9), R(-4, -r - 1), R(-7, -r - 6), R(1, -r - 1), R(r - 1, -r + 1), R(r + 2, -3), R(r, 0), R(-2, -2)], k.hair);
+  else                                                                     // tall spikes
+    blob([R(-r, 3), R(-r - 7, -3), R(-r - 1, -5), R(-r - 6, -13), R(-3, -r - 1), R(-2, -r - 13), R(3, -r - 1), R(8, -r - 9), R(r, -4), R(r + 4, -4), R(r - 1, 1), R(-2, -1)], k.hair);
+  circ(c, r, k.skin);
+  const hp = k.style === 'back'
+    ? [R(-r - 1, 1), R(-r, -5), R(-3, -r - 1), R(r - 1, -r + 3), R(r + 1, -3), R(2, -4), R(-2, -1)]
+    : [R(-r - 1, 2), R(-r, -6), R(-2, -r - 1), R(r, -r + 3), R(r + 1, -2), R(3, -5), R(-2, -1)];
+  blob(hp, k.hair);
+  X.fillStyle = col(OL); const e = R(4.5, -0.5); X.fillRect(e[0] - 1, e[1] - 1.5, 2, 3);
+  X.strokeStyle = col(OL); X.lineWidth = 1.2; const b1 = R(2.5, -3.5), b2 = R(7, -2.5); X.beginPath(); X.moveTo(...b1); X.lineTo(...b2); X.stroke();
+  const m1 = R(5, 4), m2 = R(8, 3.6); X.beginPath(); X.moveTo(...m1); X.lineTo(...m2); X.stroke();
+}
+const PIX = +(new URLSearchParams(location.search).get('pix') || 2), BW = 190, BH = 175, BOX = 95, BOY = 150;                   // sprite buffer: a box around the feet, PIX px per game pixel
+const SB = document.createElement('canvas'); SB.width = BW * PIX; SB.height = BH * PIX;
+const SBX = SB.getContext('2d', { willReadFrequently: true });
+function drawRig(who, p, x, y, dir, white, sx = 1){
+  const k = LOOK[who], J = solve(p); WHITE = !!white; HEADFLIP = sx < 0;
+  const main = X; X = SBX; X.setTransform(1, 0, 0, 1, 0, 0); X.clearRect(0, 0, SB.width, SB.height);
+  X.setTransform(PIX, 0, 0, PIX, BOX * PIX, BOY * PIX); X.save(); X.scale((dir < 0 ? -1 : 1) * sx, 1);
+  drawArm(J.ba, k, false); drawLeg(J.bl, k);
+  const hipBox = [[-8, J.hip[1] - 3], [8, J.hip[1] - 3], [J.fl[1][0] * .35 + 5, J.hip[1] + 8], [J.bl[1][0] * .35 - 5, J.hip[1] + 8]];
+  blob(hipBox, k.pants);
+  drawLeg(J.fl, k); drawTorso(J, k); drawHead(J, k, who); drawArm(J.fa, k, true);
+  X.restore(); WHITE = false; HEADFLIP = false;
+  const id = X.getImageData(0, 0, SB.width, SB.height), d = id.data;       // crisp sprite edges, no anti-aliasing
+  for (let i = 3; i < d.length; i += 4) d[i] = d[i] < 110 ? 0 : 255;
+  X.putImageData(id, 0, 0); X = main;
+  X.save(); X.imageSmoothingEnabled = false; X.drawImage(SB, Math.round(x) - BOX, Math.round(y) - BOY, BW, BH); X.restore();
+}
+function swoosh(x, y, dir, e){                                               // crescent motion arcs around the body, fading with e
+  X.save(); X.lineCap = 'round';
+  for (const [r, w, al] of [[27, 3, .75], [22, 2, .5], [32, 1.5, .35]]) {
+    X.globalAlpha = al * e; X.strokeStyle = '#ffffff'; X.lineWidth = w; X.beginPath();
+    X.ellipse(x, y, r, r * .55, 0, dir > 0 ? -Math.PI * .95 : Math.PI * .05, dir > 0 ? -Math.PI * .05 : Math.PI * .95, dir < 0); X.stroke(); }
+  X.restore();
+}
+// ── fighters: SF2 sprite frames + photo face on the frame's head ──
+const UPHEAD = +(new URLSearchParams(location.search).get('up') ?? 4);   // stance frames: head raised onto a visible neck, clear of Ken's big rear shoulder
+const SC = 1.25, AX = 32, WHITE_SPR = {};                                  // 1 sprite px = 1.25 game px = 5 canvas px; AX = body centre in the cell
+function whiteOf(who){                                                     // hit flash: the same frame as a white silhouette
+  if (!WHITE_SPR[who]) { const im = img['spr_' + who], c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+    const g = c.getContext('2d'); g.drawImage(im, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); WHITE_SPR[who] = c; }
+  return WHITE_SPR[who];
+}
+function frameOf(f){
+  const F = SHEET.frames, now = performance.now() / 1000;
+  if (f.state === 'attack') { const a = ATK[f.atk], n = F[f.atk].length;
+    if (f.atk === 'punch') return ['punch', f.t < a.hit[0] ? 0 : f.t <= a.hit[1] + 2 ? 1 : 2];
+    return [f.atk, Math.min(n - 1, Math.floor(f.t / a.dur * n))]; }
+  if (f.state === 'jump') return ['jump', Math.max(1, Math.min(5, Math.round((f.vy + 6.2) / 12.4 * 4) + 1))];
+  if (f.state === 'crouch') return ['crouch', 0];
+  if (f.state === 'walk') { const k = Math.floor(now * 9) % 4; return ['walk', f.vx * f.dir >= 0 ? k : 3 - k]; }
+  return ['idle', [0, 1, 2, 3, 2, 1][Math.floor(now * 7) % 6]];
+}
+const NECK = {};                                                          // neck tones sampled from the face's own chin/jaw skin
+function neckTones(who){
+  if (NECK[who]) return NECK[who];
+  const f = img['face_' + who], c = document.createElement('canvas'); c.width = f.width; c.height = f.height;
+  const g = c.getContext('2d'); g.drawImage(f, 0, 0); const d = g.getImageData(0, Math.round(f.height * .62), f.width, Math.round(f.height * .2)).data;
+  const px = [];
+  for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 250 && d[i] > d[i + 2] + 25 && d[i] > 90) px.push([d[i], d[i + 1], d[i + 2]]);
+  px.sort((a, b) => (a[0] + a[1] + a[2]) - (b[0] + b[1] + b[2]));
+  const at = q => px.length ? px[Math.floor(px.length * q)] : [210, 150, 115];
+  const rgb = (c, m) => `rgb(${c[0] * m | 0},${c[1] * m | 0},${c[2] * m | 0})`;
+  return NECK[who] = [rgb(at(.6), 1), rgb(at(.35), .92), rgb(at(.2), .7)];
+}
+function drawNeck(who, hx, hy, up, white){                                 // sprite-style neck in profile, drawn BEHIND the body
+  const [lit, shade, deep] = white ? ['#fff', '#eee', '#ddd'] : neckTones(who), B = 10 + up;
+  const path = () => { X.beginPath(); X.moveTo(hx + 4.5, hy + 3);           // under the chin
+    X.quadraticCurveTo(hx + 3.5, hy + B * .55, hx + 6.5, hy + B + 3);      // throat, out to the collarbone
+    X.lineTo(hx - 11, hy + B + 3);                                          // across the shoulders
+    X.quadraticCurveTo(hx - 7, hy + B - 1, hx - 6.5, hy + B * .5);         // trapezius up into the nape
+    X.lineTo(hx - 5, hy - 1); X.closePath(); };
+  X.save(); path(); X.fillStyle = lit; X.fill(); X.clip();
+  X.fillStyle = shade; X.beginPath(); X.moveTo(hx - 12, hy - 2); X.lineTo(hx - 1.5, hy - 2); X.quadraticCurveTo(hx - 2.5, hy + B * .6, hx - 4, hy + B + 4); X.lineTo(hx - 12, hy + B + 4); X.fill();   // nape in shadow
+  X.fillStyle = deep; X.beginPath(); X.ellipse(hx + 1.5, hy + 3.5, 6, 3.2, -.25, 0, 7); X.fill();   // the jaw's cast shadow
+  X.restore();
+  X.lineWidth = .6; X.lineCap = 'round'; X.strokeStyle = white ? '#ddd' : 'rgba(42,22,14,.85)';   // outline only the throat and the nape, like the body's
+  X.beginPath(); X.moveTo(hx + 4.2, hy + 6); X.quadraticCurveTo(hx + 3.5, hy + B * .55, hx + 6.5, hy + B + 3); X.stroke();
+  X.beginPath(); X.moveTo(hx - 5.3, hy + 5); X.lineTo(hx - 6.5, hy + B * .5); X.quadraticCurveTo(hx - 7, hy + B - 1, hx - 11, hy + B + 3); X.stroke();
+}
+function drawSprite(who, name, i, x, y, dir, white, rot = 0, clipY = null){
+  const fr = SHEET.frames[name][i], base = (SHEET.base[name] || 79) + 1, sheet = white ? whiteOf(who) : img['spr_' + who];
+  if (!sheet || !sheet.width) return;
+  X.save(); X.translate(Math.round(x), Math.round(y)); if (rot) X.rotate(rot); X.scale(dir < 0 ? -SC : SC, SC);
+  const face = img['face_' + who], k = LOOK[who], up = fr.tilted ? UPHEAD : 0;
+  const hx = fr.head ? fr.head[0] - AX + (fr.tilted ? 1.5 : 0) : 0, hy = fr.head ? fr.head[1] - base - 2 - up - (k.headUp || 0) : 0;
+  const tipped = name === 'spin' || (name === 'kick' && i >= 1 && i <= 3);  // tipped body: the head already rests on it
+  // the neck is Ken's own, kept in the sprite sheet (tools/make_sprites.py NECK_Y)      // BEHIND the body: shows only in the gap between chin and collar
+  const hd = SHEET.hd || 1; X.imageSmoothingEnabled = true; X.imageSmoothingQuality = 'high';          // HD sheet: Real-ESRGAN x4 of the recoloured frames
+  if (clipY !== null) { X.save(); X.beginPath(); X.rect(-AX - 10, -base - 30, SHEET.fw + 20, clipY + 30); X.clip(); }
+  X.drawImage(sheet, fr.x * hd, fr.y * hd, SHEET.fw * hd, SHEET.fh * hd, -AX, -base, SHEET.fw, SHEET.fh);
+  if (fr.head && face && face.width) {                                     // head over the frame's head, facing the way the sprite faces
+    const z = k.headScale || 1, hw = 8.5 * z, hh = 10 * z;                // about Ken's head size: a real head, not a caricature
+    X.save(); X.translate(hx, hy);
+    if (white) { X.beginPath(); X.ellipse(0, 0, hw * .8, hh * .8, 0, 0, 7); X.fillStyle = '#fff'; X.fill(); }
+    else X.drawImage(face, -hw, -hh, hw * 2, hh * 2);
+    X.restore(); }
+  if (clipY !== null) X.restore();
+  X.restore();
+}
+// ── the wheelchair fighter (ECHENIQUE): SF2 upper body from the sheet, the chair drawn with the same shading + outline ──
+const CHAIR = { dan: true };
+const CH = { frame:'#3d414c', tire:'#1c1c22', rim:'#c3c8d2', seat:'#4b2c6e', hub:'#8a909c' };
+function seatedPose(f){                                                    // which upper-body frame, and how the chair tilts
+  const now = performance.now() / 1000, idle = ['idle', [0, 1, 2, 3, 2, 1][Math.floor(now * 7) % 6]];
+  if (f.state === 'ko') return { fr: ['idle', 0], tilt: -1.35 };
+  if (f.state === 'hit') return { fr: ['idle', 0], tilt: -.22 };
+  if (f.state === 'jump') return { fr: ['jump', 3], tilt: -.38 };           // wheelie
+  if (f.state === 'crouch') return { fr: ['idle', 0], tilt: .18, low: 5 };       // duck: hunch forward in the seat
+  if (f.state === 'attack') { const a = ATK[f.atk], hit = f.t >= a.hit[0] - 2 && f.t <= a.hit[1] + 2;
+    if (f.atk === 'punch') return { fr: frameOf(f), tilt: 0 };
+    if (f.atk === 'kick') return { fr: ['punch', hit ? 1 : 0], tilt: hit ? .12 : -.08 };        // ram: lean in behind the fist
+    const flip = f.t > 6 && f.t < 34 && Math.floor(f.t / 4) % 2 === 1;                        // spin: a doughnut on the wheels
+    return { fr: ['punch', hit ? 1 : 0], tilt: 0, flip }; }
+  return { fr: idle, tilt: 0 };
+}
+function drawChair(f, back){                                               // back = the parts behind the rider
+  const wa = f.wheelA || 0;
+  if (back) {
+    seg([-9, -23], [-12, -52], 3, CH.frame); seg([-12, -52], [-17, -51], 3.4, CH.frame);          // backrest + push handle
+    X.save(); X.globalAlpha = .9; circ([-3, -13], 12.5, '#26262c'); X.restore();                    // far wheel
+    return;
+  }
+  const k = LOOK[f.who];
+  limb([-2, -25], [10, -26], 13, 14, 11, k.pants);                          // seated thigh
+  limb([10, -26], [12, -10], 10.5, 11, 8, k.pants);                         // shin
+  seg([11, -9], [18, -8.5], 5.5, '#1d1a22');                                // shoe on the footplate
+  blob([[-10, -26], [9, -26], [10, -21], [-9, -21]], CH.seat);              // seat cushion
+  seg([9, -21], [13, -8], 2.6, CH.frame); seg([12, -6.5], [20, -6.5], 2.4, CH.frame);          // front post + footplate
+  seg([10, -21], [12, -8], 2, CH.frame); circ([14, -3.2], 3.2, CH.tire);                        // caster fork + wheel
+  X.save(); X.translate(-3, -13);                                           // near wheel: tyre, rim, turning spokes, push-rim
+  X.beginPath(); X.arc(0, 0, 13, 0, 7); X.lineWidth = 3.2; X.strokeStyle = OL; X.stroke(); X.lineWidth = 2.2; X.strokeStyle = col(CH.tire); X.stroke();
+  X.beginPath(); X.arc(0, 0, 10.6, 0, 7); X.lineWidth = 1.2; X.strokeStyle = col(CH.rim); X.stroke();
+  X.lineWidth = .6; X.strokeStyle = col('#9aa0ab');
+  for (let i = 0; i < 12; i++) { const a = wa + i * Math.PI / 6; X.beginPath(); X.moveTo(0, 0); X.lineTo(Math.cos(a) * 10.4, Math.sin(a) * 10.4); X.stroke(); }
+  X.beginPath(); X.arc(0, 0, 12, 0, 7); X.lineWidth = .7; X.strokeStyle = col('#e4e8ef'); X.stroke();
+  circ([0, 0], 2.2, CH.hub); X.restore();
+}
+function drawSeated(f, white){
+  const p = seatedPose(f), dir = f.dir * (p.flip ? -1 : 1), fr = SHEET.frames[p.fr[0]][p.fr[1]], base = (SHEET.base[p.fr[0]] || 79) + 1;
+  f.wheelA = (f.wheelA || 0) + (f.x - (f.px ?? f.x)) * f.dir / 13 * (p.flip ? 3 : 1) + (p.flip ? .5 : 0); f.px = f.x;
+  const [wx, wy] = fr.waist, hipY = -25 + (p.low || 0);
+  X.save(); X.translate(Math.round(f.x), Math.round(f.y - (f.state === 'ko' ? 4 : 0)));
+  if (p.tilt) { X.translate(-dir * 3, 0); X.rotate(dir * p.tilt); X.translate(dir * 3, 0); }     // tilt about the rear wheel's contact
+  WHITE = white; X.save(); X.scale(dir, 1); drawChair(f, true); X.restore(); WHITE = false;
+  drawSprite(f.who, p.fr[0], p.fr[1], -dir * (wx - AX) * SC, hipY - (wy - base) * SC, dir, white, 0, wy + 2);
+  WHITE = white; X.save(); X.scale(dir, 1); drawChair(f, false); X.restore(); WHITE = false;
+  X.restore();
 }
 function drawFighter(f){
-  const im = spriteOf(f); if (!im || !im.width) return;
-  let w = im.width, h = im.height, y = f.y - h;
-  if (f.state === 'crouch' && f.who === 'joe') { h = h * 0.78 | 0; y = f.y - h; }       // Joe has no crouch pose: squash
-  X.save(); X.translate(Math.round(f.x), 0); if (f.dir < 0) X.scale(-1, 1);
-  if (f.state === 'ko') { X.translate(0, f.y - 10); X.rotate(-f.dir * 0 + Math.PI / 2 * (f.y >= GROUND ? 1 : 0.5)); X.drawImage(im, -w / 2, -h, w, h); }
-  else X.drawImage(im, -w / 2 | 0, Math.round(y), w, h);
-  X.restore();
-  if (f.flash > 0 && f.flash % 4 < 2) { X.save(); X.globalCompositeOperation = 'lighter'; X.globalAlpha = .35; X.translate(Math.round(f.x), 0); if (f.dir < 0) X.scale(-1, 1); X.drawImage(im, -w / 2 | 0, Math.round(y), w, h); X.restore(); }
+  const white = f.flash > 0 && f.flash % 4 < 2;
+  X.save(); X.fillStyle = 'rgba(0,0,0,.28)'; X.beginPath(); X.ellipse(f.x, GROUND - 1, 20, 4, 0, 0, 7); X.fill(); X.restore();
+  if (CHAIR[f.who]) { if (f.state === 'attack' && f.atk === 'spin') for (const t0 of [8, 30]) { const e = 1 - Math.abs(f.t - t0) / 8; if (e > 0) swoosh(f.x, f.y - 20, f.dir, e); }
+    return drawSeated(f, white); }
+  if (f.state === 'ko') { drawSprite(f.who, 'idle', 0, f.x, f.y - 6, f.dir, white, -f.dir * Math.PI / 2 * (f.y >= GROUND ? 1 : 0.5)); return; }
+  if (f.state === 'hit') { drawSprite(f.who, 'idle', 0, f.x, f.y, f.dir, white, -f.dir * 0.18); return; }
+  if (f.state === 'attack' && f.atk === 'spin')                            // reverse kick: SF2 frames + a swoosh on the turn
+    for (const t0 of [4, 34]) { const e = 1 - Math.abs(f.t - t0) / 6; if (e > 0) swoosh(f.x, f.y - 50, f.dir * (t0 === 4 ? 1 : -1), e); }
+  const [n, i] = frameOf(f); drawSprite(f.who, n, i, f.x, f.y, f.dir, white);
 }
-function led(n, x, y, digits){ X.fillStyle = '#300'; X.fillRect(x, y, digits * 6 + 2, 10); X.fillStyle = 'var(--led)'; X.fillStyle = '#ff2a1f';
+function led(n, x, y, digits){ X.fillStyle = '#300'; X.fillRect(x, y, digits * 8 + 2, 10); X.fillStyle = '#ff2a1f';
   X.font = '8px "Press Start 2P", monospace'; X.textBaseline = 'top'; X.fillText(String(n).padStart(digits, '0'), x + 1, y + 1); }
 function hud(){
   X.fillStyle = '#05060a'; X.fillRect(0, 0, W, TOP);
-  led(joe ? joe.score : 0, 2, 2, 7); led(dan ? dan.score : 0, W - 46, 2, 7);
+  led(joe ? joe.score : 0, 2, 2, 7); led(dan ? dan.score : 0, W - 60, 2, 7);
   // health bars: yellow, like the original, draining toward the centre box
   const bar = (x, w, hp, rtl) => { X.fillStyle = '#222'; X.fillRect(x, 16, w, 9); X.fillStyle = '#e8ec5a'; const fw = w * hp / 100 | 0; X.fillRect(rtl ? x + w - fw : x, 17, fw, 7); X.strokeStyle = '#555'; X.strokeRect(x + .5, 16.5, w - 1, 8); };
   bar(12, 118, joe ? joe.hp : 100, true); bar(190, 118, dan ? dan.hp : 100, false);
   X.fillStyle = '#111'; X.fillRect(138, 13, 44, 16); X.strokeStyle = '#555'; X.strokeRect(138.5, 13.5, 43, 15);
   X.fillStyle = '#ff2a1f'; X.font = '10px "Press Start 2P", monospace'; X.textAlign = 'center'; X.fillText(String(timer ?? 99).padStart(2, '0'), 160, 16); X.textAlign = 'left';
-  X.strokeStyle = '#c1271c'; X.strokeRect(62.5, 30.5, 42, 7); X.strokeRect(215.5, 30.5, 42, 7);        // the empty red boxes of the original HUD
-  X.fillStyle = '#e9edf5'; X.font = '6px "Press Start 2P", monospace'; X.fillText('JOE', 14, 31); X.textAlign = 'right'; X.fillText('DAN', W - 14, 31); X.textAlign = 'left';
+  X.strokeStyle = '#c1271c'; X.strokeRect(70.5, 30.5, 38, 7); X.strokeRect(209.5, 30.5, 38, 7);        // the empty red boxes of the original HUD
+  X.fillStyle = '#e9edf5'; X.font = '6px "Press Start 2P", monospace'; X.fillText(NAME.joe, 14, 31); X.textAlign = 'right'; X.fillText(NAME.dan, W - 14, 31); X.textAlign = 'left';
   const pips = (n, x) => { for (let i = 0; i < n; i++) { X.fillStyle = '#e8ec5a'; X.fillRect(x + i * 6, 32, 4, 4); } };
-  if (joe) pips(joe.wins, 36); if (dan) pips(dan.wins, W - 48);
+  if (joe) pips(joe.wins, 113); if (dan) pips(dan.wins, 195);
 }
 function spark(s){ X.save(); X.translate(s.x, s.y); X.fillStyle = '#fff'; const r = 3 + (12 - s.t) * .8;
   for (let i = 0; i < 8; i++) { X.rotate(Math.PI / 4); X.fillRect(0, -1, r, 2); } X.fillRect(-2, -2, 4, 4); X.restore(); }
 function text(t, y, size, col){ X.font = `${size}px "Press Start 2P", monospace`; X.textAlign = 'center'; X.textBaseline = 'middle';
   X.fillStyle = '#000'; X.fillText(t, W / 2 + 1, y + 1); X.fillStyle = col; X.fillText(t, W / 2, y); X.textAlign = 'left'; X.textBaseline = 'top'; }
+function sheet(){                                                          // dev aid: index.html#sheet shows every pose
+  X.setTransform(S, 0, 0, S, 0, 0);
+  X.fillStyle = '#6b7a8c'; X.fillRect(0, 0, W, H);
+  [['idle', 0], ['punch', 1], ['kick', 2], ['crouch', 0], ['jump', 3], ['spin', 2]].forEach(([n, i], c) => {
+    drawSprite('joe', n, i, 26 + c * 54, 112, 1); drawSprite('dan', n, i, 26 + c * 54, 230, 1); });
+}
+function karaoke(){                                                         // lyrics under the HUD while the chip song plays, lit syllable by syllable
+  const KT = location.hash.startsWith('#kt') ? +location.hash.slice(3) : null;   // dev: #kt40 = the karaoke frame at 40 s
+  if (KT === null && (track !== chip || chip.paused)) return;
+  const t = KT ?? chip.currentTime, L = KARAOKE.find(l => t >= l.s - .3 && t <= l.e); if (!L) return;
+  X.font = '6px "Press Start 2P", monospace'; X.textBaseline = 'top'; X.textAlign = 'left';
+  const line = L.w.map(w => w[0]).join(' '), tw = X.measureText(line).width; let x = (W - tw) / 2; const y = TOP + 5;
+  X.fillStyle = 'rgba(0,0,0,.55)'; X.fillRect(x - 4, y - 3, tw + 8, 12);
+  for (const [word, syl] of L.w) {                                        // syllable by syllable, each lit on its own note
+    let rest = word;
+    syl.forEach(([p, ts], si) => {
+      const k = rest.toLowerCase().indexOf(p.toLowerCase()), seg = k > 0 ? rest.slice(0, k + p.length) : rest.slice(0, p.length);
+      rest = rest.slice(seg.length); const txt = si === syl.length - 1 ? seg + rest : seg;
+      X.fillStyle = '#000'; X.fillText(txt, x + .7, y + .7); X.fillStyle = t >= ts ? '#ffe45c' : '#ffffff'; X.fillText(txt, x, y);
+      x += X.measureText(txt).width; });
+    x += X.measureText(' ').width; }
+}
 function draw(){
+  if (location.hash === '#sheet') return sheet();
+  if (location.hash === '#chairsheet') {                                   // dev aid: every wheelchair pose
+    X.setTransform(S, 0, 0, S, 0, 0); X.fillStyle = '#6b7a8c'; X.fillRect(0, 0, W, H);
+    const P = [['idle'], ['walk'], ['attack', 'punch', 6], ['attack', 'kick', 9], ['attack', 'spin', 20], ['crouch'], ['jump'], ['hit']];
+    P.forEach(([st, atk, t], i) => drawFighter({ who: 'dan', x: 26 + (i % 4) * 78, y: i < 4 ? 112 : 230, dir: 1, state: st, atk, t, flash: 0 }));
+    return;
+  }
+  if (location.hash === '#spinsheet') {                                    // dev aid: the spinning back kick, frame by frame
+    X.setTransform(S, 0, 0, S, 0, 0); X.fillStyle = '#6b7a8c'; X.fillRect(0, 0, W, H);
+    [0, 1, 2, 3, 4].forEach(i => { for (const [who, y] of [["joe", 112], ["dan", 230]]) drawSprite(who, 'spin', i, 30 + i * 64, y, 1); });
+    return;
+  }
+  X.setTransform(S, 0, 0, S, 0, 0); X.imageSmoothingQuality = 'high';
   X.clearRect(0, 0, W, H);
-  if (img.stage && img.stage.width) X.drawImage(img.stage, 0, TOP);
+  if (img.stage && img.stage.width) X.drawImage(img.stage, 0, TOP, W, H - TOP);
   hud();
   if (state === 'title') {
     X.fillStyle = 'rgba(0,0,0,.45)'; X.fillRect(0, TOP, W, H - TOP);
-    text('JOE  VS  DAN', 110, 16, '#e8ec5a'); text('TAP OR PRESS ENTER', 150, 7, '#e9edf5');
-    text('stage and fighters cut from the original recording', 200, 5, '#8a93a8'); return;
+    drawFighter({ who:'joe', x:70, y:GROUND, dir:1, state:'idle', flash:0 }); drawFighter({ who:'dan', x:250, y:GROUND, dir:-1, state:'idle', flash:0 });
+    text(`${NAME.joe} VS ${NAME.dan}`, 100, 14, '#e8ec5a'); text('TAP OR PRESS ENTER', 140, 7, '#e9edf5'); karaoke(); return;
   }
   const order = [joe, dan].sort((a, b) => (a.state === 'attack') - (b.state === 'attack'));
   order.forEach(drawFighter); sparks.forEach(spark);
   if (bannerT > 0 || state === 'over') text(banner, 110, state === 'over' ? 9 : 14, state === 'over' ? '#e8ec5a' : '#fff');
   if (state === 'over') text('TAP TO PLAY AGAIN', 140, 7, '#e9edf5');
+  karaoke();
 }
 function loop(t){ const dt = t - last; if (dt >= 1000 / 61) { last = t; step(); draw(); } requestAnimationFrame(loop); }
-Promise.all(need).then(() => { draw(); requestAnimationFrame(loop); });
+// dev: index.html#song plays and records the whole chip song
+Promise.all(need).then(() => { if (location.hash === '#song') { audioTap(); musicStart(); recStart(); setTimeout(recStop, 53000); } if (location.hash === '#fight' || DEMO) startOrNext(); draw(); requestAnimationFrame(loop); });
 })();
 </script>
