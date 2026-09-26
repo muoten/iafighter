@@ -67,6 +67,7 @@ def upscale(arr, tag):
     H, Wd = al.shape; yy, xx = np.mgrid[0:H, 0:Wd]                             # fade into the neck ONLY at the nape (back-bottom corner):
     ramp = np.clip((H * 0.98 - yy) / (H * 0.08), 0, 1)                         # the face — mouth, chin — stays fully opaque
     ramp = np.where(xx < Wd * 0.45, ramp, 1.0)
+    if tag.startswith('echenique'): ramp[:] = 1.0                             # reconstructed nape: keep it solid
     return Image.fromarray(np.dstack([rgb4, (al * ramp * 255).astype(np.uint8)]))
 
 def lite(who, colors=24):
