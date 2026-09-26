@@ -97,13 +97,14 @@ function toggleSound(){ soundOn = !soundOn; if (!soundOn) musicPause(); else if 
 
 // ── fighters ──
 const SPEED = { joe:1, dan:1.5 }, POWER = { joe:1, dan:1.25 };             // IA_FRA: 50% faster, hits 25% harder
+const WORLD = 368;                                                         // arena width: 15% wider than the screen, the camera follows
 const ATK = { punch:{ dur:14, hit:[4,8], reach:30, dmg:7, lunge:5 }, kick:{ dur:20, hit:[7,12], reach:40, dmg:11, lunge:9 },
   spin:{ dur:42, hit:[15,24], reach:44, dmg:13, lunge:6, turn:6, cool:30, rate:1, high:true } };   // spinning back kick: half turn, rear leg straight back, one strong hit
 function fighter(who, x, dir){ return { who, x, y:GROUND, vx:0, vy:0, dir, hp:100, state:'idle', t:0, atk:null, hitDone:false, frame:0, flash:0, score:0, wins:0, crouch:false }; }
 let joe, dan, timer, round, state = 'title', banner = '', bannerT = 0, sparks = [], ai = { t:0, want:'idle' };
 
-function newRound(){ joe = Object.assign(joe || fighter('joe'), { x:90, y:GROUND, vx:0, vy:0, dir:1, hp:100, state:'idle', t:0, atk:null, flash:0 });
-  dan = Object.assign(dan || fighter('dan'), { x:230, y:GROUND, vx:0, vy:0, dir:-1, hp:100, state:'idle', t:0, atk:null, flash:0 });
+function newRound(){ joe = Object.assign(joe || fighter('joe'), { x:114, y:GROUND, vx:0, vy:0, dir:1, hp:100, state:'idle', t:0, atk:null, flash:0 });
+  dan = Object.assign(dan || fighter('dan'), { x:254, y:GROUND, vx:0, vy:0, dir:-1, hp:100, state:'idle', t:0, atk:null, flash:0 });
   timer = 99; banner = `ROUND ${round}`; bannerT = 90; state = 'intro'; if (!SHOWCASE) { recStop(); recStart(); } }
 // ── recording: every ROUND is saved as one video (canvas + music), downloaded when the round ends ──
 let rec = null, AC = null, AD = null;
@@ -128,7 +129,7 @@ function recStart(){
 }
 function recStop(){ if (rec && rec.state !== 'inactive') rec.stop(); rec = null; document.getElementById('rec').hidden = true; }
 function startOrNext(){
-  if (state === 'title' || state === 'over') { joe = fighter('joe', 90, 1); dan = fighter('dan', 230, -1); round = DEMO ? DEMO_ROUND : 1;
+  if (state === 'title' || state === 'over') { joe = fighter('joe', 114, 1); dan = fighter('dan', 254, -1); round = DEMO ? DEMO_ROUND : 1;
     if (DEMO) { dan.wins = round >= 2 ? 1 : 0; joe.wins = round >= 3 ? 1 : 0; dan.score = 6000 * dan.wins; joe.score = 6000 * joe.wins; } newRound();   // demo: round 2 = 0-1, round 3 = 1-1
     if (soundOn) musicStart();
     audioTap(); if (SHOWCASE) recStart(); }
@@ -170,7 +171,7 @@ function physics(f){
   if (f.state === 'attack' && f.t < 5) f.x += f.dir * ATK[f.atk].lunge / 5;
   if (f.state === 'attack' && ATK[f.atk].glide) f.x += f.dir * ATK[f.atk].glide * SPEED[f.who];
   if (f.cool > 0) f.cool--;
-  f.x += f.vx; f.x = Math.max(18, Math.min(W - 18, f.x));
+  f.x += f.vx; f.x = Math.max(28, Math.min(WORLD - 28, f.x));                 // the chair is wider than a standing fighter
   if (f.flash > 0) f.flash--;
 }
 function endRound(winner){ if (state !== 'fight') return;
@@ -230,6 +231,8 @@ function step(){
   }
   edge.up = edge.punch = edge.kick = edge.spin = false;
   if (state !== 'title') { physics(joe); physics(dan);
+    const gap = Math.abs(joe.x - dan.x) - (W - 40);                        // both must stay on screen: no running away from the camera
+    if (gap > 0) { const back = gap / 2 * (joe.x < dan.x ? 1 : -1); joe.x += back; dan.x -= back; }
     if (state === 'fight' && Math.abs(joe.x - dan.x) < 26) { const push = (26 - Math.abs(joe.x - dan.x)) / 2 * (joe.x < dan.x ? 1 : -1); joe.x -= push; dan.x += push; } }
   if (bannerT > 0 && state === 'fight') bannerT--;
   sparks = sparks.filter(s => --s.t > 0);
@@ -495,8 +498,8 @@ function seatedPose(f){                                                    // wh
   if (f.state === 'attack') { const a = ATK[f.atk], hit = f.t >= a.hit[0] - 2 && f.t <= a.hit[1] + 2;
     if (f.atk === 'punch') return { fr: frameOf(f), tilt: 0 };
     if (f.atk === 'kick') return { fr: ['punch', hit ? 1 : 0], tilt: hit ? .12 : -.08 };        // ram: lean in behind the fist
-    const flip = f.t > 6 && f.t < 34 && Math.floor(f.t / 4) % 2 === 1;                        // spin: a doughnut on the wheels
-    return { fr: ['punch', hit ? 1 : 0], tilt: 0, flip }; }
+    const flip = f.t > 3 && f.t < 14 && Math.floor((f.t - 3) / 2.75) % 2 === 1;             // spin: a fast doughnut in guard...
+    return { fr: hit && !flip ? ['punch', 1] : ['idle', 0], tilt: 0, flip }; }            // ...then one backfist, forward
   return { fr: idle, tilt: 0 };
 }
 function drawChair(f, back){                                               // back = the parts behind the rider
@@ -535,7 +538,7 @@ function drawSeated(f, white){
 function drawFighter(f){
   const white = f.flash > 0 && f.flash % 4 < 2;
   X.save(); X.fillStyle = 'rgba(0,0,0,.28)'; X.beginPath(); X.ellipse(f.x, GROUND - 1, 20, 4, 0, 0, 7); X.fill(); X.restore();
-  if (CHAIR[f.who]) { if (f.state === 'attack' && f.atk === 'spin') for (const t0 of [8, 30]) { const e = 1 - Math.abs(f.t - t0) / 8; if (e > 0) swoosh(f.x, f.y - 20, f.dir, e); }
+  if (CHAIR[f.who]) { if (f.state === 'attack' && f.atk === 'spin') for (const t0 of [8]) { const e = 1 - Math.abs(f.t - t0) / 8; if (e > 0) swoosh(f.x, f.y - 20, f.dir, e); }
     return drawSeated(f, white); }
   if (f.state === 'ko') { drawSprite(f.who, 'idle', 0, f.x, f.y - 6, f.dir, white, -f.dir * Math.PI / 2 * (f.y >= GROUND ? 1 : 0.5)); return; }
   if (f.state === 'hit') { drawSprite(f.who, 'idle', 0, f.x, f.y, f.dir, white, -f.dir * 0.18); return; }
@@ -584,6 +587,7 @@ function karaoke(){                                                         // l
       x += X.measureText(txt).width; });
     x += X.measureText(' ').width; }
 }
+let cam = (WORLD - W) / 2;
 function draw(){
   if (location.hash === '#sheet') return sheet();
   if (location.hash === '#chairsheet') {                                   // dev aid: every wheelchair pose
@@ -599,7 +603,11 @@ function draw(){
   }
   X.setTransform(S, 0, 0, S, 0, 0); X.imageSmoothingQuality = 'high';
   X.clearRect(0, 0, W, H);
-  if (img.stage && img.stage.width) X.drawImage(img.stage, 0, TOP, W, H - TOP);
+  const mid = joe && dan ? (joe.x + dan.x) / 2 : WORLD / 2, target = Math.max(0, Math.min(WORLD - W, mid - W / 2));
+  cam += (target - cam) * .12;                                              // smooth follow
+  const sh = (H - TOP) * WORLD / W;                                         // stage scaled to the arena, anchored at the ground
+  if (img.stage && img.stage.width) { X.save(); X.beginPath(); X.rect(0, TOP, W, H - TOP); X.clip();
+    X.drawImage(img.stage, -cam, H - sh, WORLD, sh); X.restore(); }
   hud();
   if (state === 'title') {
     X.fillStyle = 'rgba(0,0,0,.45)'; X.fillRect(0, TOP, W, H - TOP);
@@ -607,7 +615,7 @@ function draw(){
     text(`${NAME.joe} VS ${NAME.dan}`, 100, 14, '#e8ec5a'); text('TAP OR PRESS ENTER', 140, 7, '#e9edf5'); karaoke(); return;
   }
   const order = [joe, dan].sort((a, b) => (a.state === 'attack') - (b.state === 'attack'));
-  order.forEach(drawFighter); sparks.forEach(spark);
+  X.save(); X.translate(-Math.round(cam * 4) / 4, 0); order.forEach(drawFighter); sparks.forEach(spark); X.restore();
   if (bannerT > 0 || state === 'over') text(banner, 110, state === 'over' ? 9 : 14, state === 'over' ? '#e8ec5a' : '#fff');
   if (state === 'over') text('TAP TO PLAY AGAIN', 140, 7, '#e9edf5');
   karaoke();
