@@ -1,0 +1,114 @@
+{
+ "joe": {
+  "idle": [
+   {
+    "src": "img/joe_idle_0.png",
+    "w": 48,
+    "h": 112
+   },
+   {
+    "src": "img/joe_idle_1.png",
+    "w": 54,
+    "h": 107
+   }
+  ],
+  "walk": [
+   {
+    "src": "img/joe_walk_0.png",
+    "w": 54,
+    "h": 107
+   },
+   {
+    "src": "img/joe_walk_1.png",
+    "w": 48,
+    "h": 112
+   },
+   {
+    "src": "img/joe_walk_2.png",
+    "w": 47,
+    "h": 105
+   },
+   {
+    "src": "img/joe_walk_3.png",
+    "w": 48,
+    "h": 112
+   }
+  ],
+  "attack": [
+   {
+    "src": "img/joe_attack_0.png",
+    "w": 47,
+    "h": 105
+   }
+  ],
+  "hit": [
+   {
+    "src": "img/joe_hit_0.png",
+    "w": 54,
+    "h": 107
+   }
+  ]
+ },
+ "dan": {
+  "idle": [
+   {
+    "src": "img/dan_idle_0.png",
+    "w": 49,
+    "h": 116
+   },
+   {
+    "src": "img/dan_idle_1.png",
+    "w": 51,
+    "h": 117
+   }
+  ],
+  "walk": [
+   {
+    "src": "img/dan_walk_0.png",
+    "w": 65,
+    "h": 122
+   },
+   {
+    "src": "img/dan_walk_1.png",
+    "w": 52,
+    "h": 120
+   },
+   {
+    "src": "img/dan_walk_2.png",
+    "w": 53,
+    "h": 120
+   },
+   {
+    "src": "img/dan_walk_3.png",
+    "w": 50,
+    "h": 117
+   }
+  ],
+  "crouch": [
+   {
+    "src": "img/dan_crouch_0.png",
+    "w": 59,
+    "h": 98
+   }
+  ],
+  "attack": [
+   {
+    "src": "img/dan_attack_0.png",
+    "w": 77,
+    "h": 85
+   },
+   {
+    "src": "img/dan_attack_1.png",
+    "w": 52,
+    "h": 100
+   }
+  ],
+  "hit": [
+   {
+    "src": "img/dan_hit_0.png",
+    "w": 50,
+    "h": 118
+   }
+  ]
+ }
+}

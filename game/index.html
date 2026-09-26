@@ -1,0 +1,228 @@
+<title>Joe vs Dan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<style>
+  :root { color-scheme: dark; --bg:#07080c; --panel:#11131b; --edge:#2a2f40; --fg:#e9edf5; --dim:#8a93a8; --joe:#3456ff; --dan:#ff5a3c; --led:#ff2a1f; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 12px/1.4 "Press Start 2P", ui-monospace, monospace;
+         display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+         padding-inline: 16px; box-sizing: border-box; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+  #wrap { width: 100%; max-width: 960px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  canvas { width: 100%; max-width: 100%; aspect-ratio: 320 / 236; image-rendering: pixelated; image-rendering: crisp-edges;
+           background: #000; border: 2px solid var(--edge); border-radius: 6px; }
+  #pad { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .cluster { display: grid; gap: 8px; }
+  .dpad { grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(2, 56px); }
+  .acts { grid-template-columns: repeat(2, 68px); grid-template-rows: 68px; }
+  button { font: inherit; font-size: 11px; color: var(--fg); background: var(--panel); border: 2px solid var(--edge);
+           border-radius: 10px; padding: 0; touch-action: none; }
+  button:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+  button.on { background: #2a3350; }
+  .acts button { border-radius: 50%; }
+  #pbtn { border-color: var(--joe); } #kbtn { border-color: var(--dan); }
+  #up { grid-column: 2; } #left { grid-column: 1; grid-row: 2; } #down { grid-column: 2; grid-row: 2; } #right { grid-column: 3; grid-row: 2; }
+  #help { color: var(--dim); font-size: 9px; text-align: center; line-height: 1.8; }
+  @media (min-width: 900px) and (hover: hover) { #pad { display: none; } }
+  @media (orientation: landscape) and (max-height: 520px) {
+    body { flex-direction: row; } #wrap { flex-direction: row; max-width: none; height: 100%; }
+    canvas { width: auto; height: calc(100% - 16px); }
+    #pad { flex-direction: column; width: auto; height: 100%; justify-content: center; }
+  }
+</style>
+<div id="wrap">
+  <canvas id="c" width="320" height="236" aria-label="Joe vs Dan fighting game"></canvas>
+  <div id="pad" aria-label="Touch controls">
+    <div class="cluster dpad">
+      <button id="up" data-k="up" aria-label="Jump">▲</button>
+      <button id="left" data-k="left" aria-label="Left">◀</button>
+      <button id="down" data-k="down" aria-label="Crouch">▼</button>
+      <button id="right" data-k="right" aria-label="Right">▶</button>
+    </div>
+    <div class="cluster acts">
+      <button id="pbtn" data-k="punch">PUNCH</button>
+      <button id="kbtn" data-k="kick">KICK</button>
+    </div>
+  </div>
+  <div id="help">Keys: A/D move · W jump · S crouch · J punch · K kick · Enter start · M sound</div>
+</div>
+<script>
+(() => {
+const C = document.getElementById('c'), X = C.getContext('2d');
+X.imageSmoothingEnabled = false;
+const W = 320, H = 236, TOP = 42, GROUND = 226;
+
+// ── assets: the stage and the fighters, cut from the original CRT recording ──
+const SPR = {
+  joe: { idle:[0,1], walk:[0,1,2,3], attack:[0], hit:[0] },
+  dan: { idle:[0,1], walk:[0,1,2,3], attack:[0,1], crouch:[0], hit:[0] },
+};
+const img = {}, need = [];
+function load(key, src){ const i = new Image(); i.src = src; img[key] = i; need.push(new Promise(r => { i.onload = r; i.onerror = r; })); }
+load('stage', 'img/stage.png');
+for (const who in SPR) for (const pose in SPR[who]) SPR[who][pose].forEach(k => load(`${who}_${pose}_${k}`, `img/${who}_${pose}_${k}.png`));
+const music = new Audio('original_audio.mp3'); music.loop = true; music.volume = 0.6;
+let soundOn = true;
+
+// ── input: keyboard + touch buttons share one key map ──
+const K = { left:false, right:false, up:false, down:false, punch:false, kick:false };
+const edge = { punch:false, kick:false, up:false };
+const keymap = { KeyA:'left', ArrowLeft:'left', KeyD:'right', ArrowRight:'right', KeyW:'up', ArrowUp:'up', KeyS:'down', ArrowDown:'down', KeyJ:'punch', KeyK:'kick' };
+function press(k, v){ if (v && !K[k] && k in edge) edge[k] = true; K[k] = v; }
+addEventListener('keydown', e => { if (keymap[e.code]) { press(keymap[e.code], true); e.preventDefault(); }
+  if (e.code === 'Enter' || e.code === 'Space') startOrNext(); if (e.code === 'KeyM') toggleSound(); });
+addEventListener('keyup', e => { if (keymap[e.code]) press(keymap[e.code], false); });
+document.querySelectorAll('#pad button').forEach(b => {
+  const k = b.dataset.k;
+  const on = e => { e.preventDefault(); b.classList.add('on'); press(k, true); if (state === 'title' || state === 'over') startOrNext(); };
+  const off = e => { e.preventDefault(); b.classList.remove('on'); press(k, false); };
+  b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off);
+});
+C.addEventListener('pointerdown', () => startOrNext());
+function toggleSound(){ soundOn = !soundOn; if (!soundOn) music.pause(); else if (state === 'fight') music.play().catch(()=>{}); }
+
+// ── fighters ──
+const ATK = { punch:{ dur:14, hit:[4,8], reach:30, dmg:7, lunge:5 }, kick:{ dur:20, hit:[7,12], reach:40, dmg:11, lunge:9 } };
+function fighter(who, x, dir){ return { who, x, y:GROUND, vx:0, vy:0, dir, hp:100, state:'idle', t:0, atk:null, hitDone:false, frame:0, flash:0, score:0, wins:0, crouch:false }; }
+let joe, dan, timer, round, state = 'title', banner = '', bannerT = 0, sparks = [], ai = { t:0, want:'idle' };
+
+function newRound(){ joe = Object.assign(joe || fighter('joe'), { x:90, y:GROUND, vx:0, vy:0, dir:1, hp:100, state:'idle', t:0, atk:null, flash:0 });
+  dan = Object.assign(dan || fighter('dan'), { x:230, y:GROUND, vx:0, vy:0, dir:-1, hp:100, state:'idle', t:0, atk:null, flash:0 });
+  timer = 99; banner = `ROUND ${round}`; bannerT = 90; state = 'intro'; }
+function startOrNext(){
+  if (state === 'title' || state === 'over') { joe = fighter('joe', 90, 1); dan = fighter('dan', 230, -1); round = 1; newRound();
+    if (soundOn) { music.currentTime = 0; music.play().catch(()=>{}); } }
+}
+
+function control(f, o, inp){
+  f.dir = f.x < o.x ? 1 : -1;
+  if (f.state === 'ko') return;
+  if (f.state === 'hit') { if (--f.t <= 0) f.state = 'idle'; return; }
+  if (f.state === 'attack') {
+    f.t++; const a = ATK[f.atk];
+    if (f.t >= a.hit[0] && f.t <= a.hit[1] && !f.hitDone && Math.abs(o.x - f.x) < a.reach + 14 && Math.abs(o.y - f.y) < 40 && o.state !== 'ko') {
+      f.hitDone = true; land(f, o, a);
+    }
+    if (f.t >= a.dur) f.state = 'idle';
+    return;
+  }
+  f.crouch = inp.down && f.y >= GROUND;
+  const onGround = f.y >= GROUND;
+  if (onGround && (inp.punchE || inp.kickE)) { f.atk = inp.kickE ? 'kick' : 'punch'; f.state = 'attack'; f.t = 0; f.hitDone = false; f.vx = 0; return; }
+  if (onGround && inp.upE) { f.vy = -6.2; f.vx = (inp.right ? 1.6 : inp.left ? -1.6 : 0); }
+  if (onGround && !f.crouch) f.vx = inp.right ? 1.5 : inp.left ? -1.5 : 0;
+  if (f.crouch) f.vx = 0;
+  f.state = !onGround ? 'jump' : f.crouch ? 'crouch' : (f.vx ? 'walk' : 'idle');
+}
+function land(f, o, a){
+  const blocked = o.crouch && f.atk === 'punch' && o.who === 'dan' ? false : false;
+  o.hp = Math.max(0, o.hp - a.dmg); o.state = 'hit'; o.t = 12; o.vx = f.dir * 2.2; o.flash = 8; f.score += 100;
+  sparks.push({ x: f.x + f.dir * (a.reach - 6), y: f.y - (f.atk === 'kick' ? 62 : 78), t: 12 });
+  if (o.hp <= 0) { o.state = 'ko'; o.vy = -4; o.vx = f.dir * 2.5; f.score += 5000; endRound(f); }
+}
+function physics(f){
+  f.vy += 0.34; f.y += f.vy; if (f.y >= GROUND) { f.y = GROUND; f.vy = 0; if (f.state === 'ko' || f.state === 'hit') f.vx *= 0.8; }
+  if (f.state === 'attack' && f.t < 5) f.x += f.dir * ATK[f.atk].lunge / 5;
+  f.x += f.vx; f.x = Math.max(18, Math.min(W - 18, f.x));
+  if (f.flash > 0) f.flash--;
+}
+function endRound(winner){ if (state !== 'fight') return;
+  if (winner) winner.wins++; banner = winner ? `${winner.who.toUpperCase()} WINS` : 'DRAW'; bannerT = 150; state = 'ko'; }
+
+// ── CPU: Dan approaches, attacks in range, sometimes jumps or crouches ──
+function danAI(){
+  const d = Math.abs(joe.x - dan.x), inp = { left:false, right:false, down:false, upE:false, punchE:false, kickE:false };
+  if (--ai.t <= 0) { ai.t = 18 + Math.random() * 30 | 0;
+    ai.want = d > 60 ? (Math.random() < .8 ? 'approach' : 'jump') : d > 34 ? (Math.random() < .5 ? 'kick' : 'approach') : ['punch','kick','crouch','back'][Math.random() * 4 | 0]; }
+  const toward = joe.x > dan.x ? 'right' : 'left', away = toward === 'right' ? 'left' : 'right';
+  if (ai.want === 'approach') inp[toward] = true;
+  if (ai.want === 'back') inp[away] = true;
+  if (ai.want === 'crouch') inp.down = true;
+  if (ai.want === 'jump') { inp.upE = true; inp[toward] = true; ai.want = 'approach'; }
+  if ((ai.want === 'punch' || ai.want === 'kick') && d < 48) { inp[ai.want + 'E'] = true; ai.want = 'idle'; }
+  return inp;
+}
+
+// ── loop ──
+let last = 0, secT = 0;
+function step(){
+  if (state === 'intro') { if (--bannerT <= 0) { banner = 'FIGHT'; bannerT = 40; state = 'fight'; } }
+  else if (state === 'fight') {
+    const pin = { left:K.left, right:K.right, down:K.down, upE:edge.up, punchE:edge.punch, kickE:edge.kick };
+    control(joe, dan, pin); control(dan, joe, danAI());
+    if (++secT >= 60) { secT = 0; timer--; if (timer <= 0) { timer = 0; endRound(joe.hp === dan.hp ? null : joe.hp > dan.hp ? joe : dan); } }
+  } else if (state === 'ko') {
+    if (--bannerT <= 0) { if (joe.wins === 2 || dan.wins === 2) { state = 'over'; banner = joe.wins === 2 ? 'JOE WINS THE MATCH' : 'DAN WINS THE MATCH'; music.pause(); }
+                          else { round++; newRound(); } }
+  }
+  edge.up = edge.punch = edge.kick = false;
+  if (state !== 'title') { physics(joe); physics(dan);
+    if (state === 'fight' && Math.abs(joe.x - dan.x) < 26) { const push = (26 - Math.abs(joe.x - dan.x)) / 2 * (joe.x < dan.x ? 1 : -1); joe.x -= push; dan.x += push; } }
+  if (bannerT > 0 && state === 'fight') bannerT--;
+  sparks = sparks.filter(s => --s.t > 0);
+}
+
+// ── drawing ──
+function pose(f){
+  const s = SPR[f.who];
+  if (f.state === 'attack') return s.attack[f.atk === 'kick' ? s.attack.length - 1 : 0];
+  if (f.state === 'hit' || f.state === 'ko') return ['hit', 0];
+  if (f.state === 'crouch' && s.crouch) return ['crouch', 0];
+  if (f.state === 'walk') return ['walk', (performance.now() / 110 | 0) % s.walk.length];
+  return ['idle', (performance.now() / 400 | 0) % s.idle.length];
+}
+function spriteOf(f){
+  const s = SPR[f.who];
+  let p = f.state === 'attack' ? ['attack', f.atk === 'kick' ? s.attack.length - 1 : 0]
+        : (f.state === 'hit' || f.state === 'ko') ? ['hit', 0]
+        : (f.state === 'crouch' && s.crouch) ? ['crouch', 0]
+        : f.state === 'walk' ? ['walk', (performance.now() / 110 | 0) % s.walk.length]
+        : ['idle', (performance.now() / 400 | 0) % s.idle.length];
+  return img[`${f.who}_${p[0]}_${s[p[0]][p[1]]}`];
+}
+function drawFighter(f){
+  const im = spriteOf(f); if (!im || !im.width) return;
+  let w = im.width, h = im.height, y = f.y - h;
+  if (f.state === 'crouch' && f.who === 'joe') { h = h * 0.78 | 0; y = f.y - h; }       // Joe has no crouch pose: squash
+  X.save(); X.translate(Math.round(f.x), 0); if (f.dir < 0) X.scale(-1, 1);
+  if (f.state === 'ko') { X.translate(0, f.y - 10); X.rotate(-f.dir * 0 + Math.PI / 2 * (f.y >= GROUND ? 1 : 0.5)); X.drawImage(im, -w / 2, -h, w, h); }
+  else X.drawImage(im, -w / 2 | 0, Math.round(y), w, h);
+  X.restore();
+  if (f.flash > 0 && f.flash % 4 < 2) { X.save(); X.globalCompositeOperation = 'lighter'; X.globalAlpha = .35; X.translate(Math.round(f.x), 0); if (f.dir < 0) X.scale(-1, 1); X.drawImage(im, -w / 2 | 0, Math.round(y), w, h); X.restore(); }
+}
+function led(n, x, y, digits){ X.fillStyle = '#300'; X.fillRect(x, y, digits * 6 + 2, 10); X.fillStyle = 'var(--led)'; X.fillStyle = '#ff2a1f';
+  X.font = '8px "Press Start 2P", monospace'; X.textBaseline = 'top'; X.fillText(String(n).padStart(digits, '0'), x + 1, y + 1); }
+function hud(){
+  X.fillStyle = '#05060a'; X.fillRect(0, 0, W, TOP);
+  led(joe ? joe.score : 0, 2, 2, 7); led(dan ? dan.score : 0, W - 46, 2, 7);
+  // health bars: yellow, like the original, draining toward the centre box
+  const bar = (x, w, hp, rtl) => { X.fillStyle = '#222'; X.fillRect(x, 16, w, 9); X.fillStyle = '#e8ec5a'; const fw = w * hp / 100 | 0; X.fillRect(rtl ? x + w - fw : x, 17, fw, 7); X.strokeStyle = '#555'; X.strokeRect(x + .5, 16.5, w - 1, 8); };
+  bar(12, 118, joe ? joe.hp : 100, true); bar(190, 118, dan ? dan.hp : 100, false);
+  X.fillStyle = '#111'; X.fillRect(138, 13, 44, 16); X.strokeStyle = '#555'; X.strokeRect(138.5, 13.5, 43, 15);
+  X.fillStyle = '#ff2a1f'; X.font = '10px "Press Start 2P", monospace'; X.textAlign = 'center'; X.fillText(String(timer ?? 99).padStart(2, '0'), 160, 16); X.textAlign = 'left';
+  X.strokeStyle = '#c1271c'; X.strokeRect(62.5, 30.5, 42, 7); X.strokeRect(215.5, 30.5, 42, 7);        // the empty red boxes of the original HUD
+  X.fillStyle = '#e9edf5'; X.font = '6px "Press Start 2P", monospace'; X.fillText('JOE', 14, 31); X.textAlign = 'right'; X.fillText('DAN', W - 14, 31); X.textAlign = 'left';
+  const pips = (n, x) => { for (let i = 0; i < n; i++) { X.fillStyle = '#e8ec5a'; X.fillRect(x + i * 6, 32, 4, 4); } };
+  if (joe) pips(joe.wins, 36); if (dan) pips(dan.wins, W - 48);
+}
+function spark(s){ X.save(); X.translate(s.x, s.y); X.fillStyle = '#fff'; const r = 3 + (12 - s.t) * .8;
+  for (let i = 0; i < 8; i++) { X.rotate(Math.PI / 4); X.fillRect(0, -1, r, 2); } X.fillRect(-2, -2, 4, 4); X.restore(); }
+function text(t, y, size, col){ X.font = `${size}px "Press Start 2P", monospace`; X.textAlign = 'center'; X.textBaseline = 'middle';
+  X.fillStyle = '#000'; X.fillText(t, W / 2 + 1, y + 1); X.fillStyle = col; X.fillText(t, W / 2, y); X.textAlign = 'left'; X.textBaseline = 'top'; }
+function draw(){
+  X.clearRect(0, 0, W, H);
+  if (img.stage && img.stage.width) X.drawImage(img.stage, 0, TOP);
+  hud();
+  if (state === 'title') {
+    X.fillStyle = 'rgba(0,0,0,.45)'; X.fillRect(0, TOP, W, H - TOP);
+    text('JOE  VS  DAN', 110, 16, '#e8ec5a'); text('TAP OR PRESS ENTER', 150, 7, '#e9edf5');
+    text('stage and fighters cut from the original recording', 200, 5, '#8a93a8'); return;
+  }
+  const order = [joe, dan].sort((a, b) => (a.state === 'attack') - (b.state === 'attack'));
+  order.forEach(drawFighter); sparks.forEach(spark);
+  if (bannerT > 0 || state === 'over') text(banner, 110, state === 'over' ? 9 : 14, state === 'over' ? '#e8ec5a' : '#fff');
+  if (state === 'over') text('TAP TO PLAY AGAIN', 140, 7, '#e9edf5');
+}
+function loop(t){ const dt = t - last; if (dt >= 1000 / 61) { last = t; step(); draw(); } requestAnimationFrame(loop); }
+Promise.all(need).then(() => { draw(); requestAnimationFrame(loop); });
+})();
+</script>
