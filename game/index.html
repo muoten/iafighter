@@ -246,7 +246,7 @@ const LOOK = {
   joe: { skin:'#e0a684', skinD:'#b07558', top:'#eeece8', topD:'#b8b4ae', pants:'#8db0d4', pantsD:'#5b7ea6', belt:'#3b3331', boot:'#e0a684', shoe:'#f4f4f4',
          hair:'#3a2a22', hairD:'#1f1612', wrist:null, style:'short', broad:12, tee:true, shortsAt:0.18, matte:true, faceDx:3, headScale:1.12, neck:'#c98a66' },   // Congui: white tee + black pocket, denim shorts
   dan: { skin:'#ecb892', skinD:'#b98060', top:'#17151d', topD:'#45404f', pants:'#3f64b4', pantsD:'#26427e', belt:'#6b4a2b', boot:'#1d1a22', shoe:'#1d1a22',
-         hair:'#e8c983', hairD:'#b8954c', wrist:null, style:'long', broad:10, necklace:'#dcae3e', matte:true, headScale:1.3, faceDx:2, neck:'#dba684', headUp:-3.5 },   // Afra Blanco: black V-neck, gold necklace, jeans
+         hair:'#e8c983', hairD:'#b8954c', wrist:null, style:'long', broad:10, necklace:'#dcae3e', matte:true, headScale:1.3, faceDx:2, neck:'#dba684', headUp:-3.5, napeFill:true },   // Afra Blanco: black V-neck, gold necklace, jeans
 };
 const PO = {
   idle:   { lean:8,   fT:26,  fS:-4,  bT:-22, bS:-12, fU:40,  fF:160, bU:18,  bF:150, head:0 },
@@ -476,6 +476,8 @@ function drawSprite(who, name, i, x, y, dir, white, rot = 0, clipY = null){
   // the neck is Ken's own, kept in the sprite sheet (tools/make_sprites.py NECK_Y)      // BEHIND the body: shows only in the gap between chin and collar
   const hd = SHEET.hd || 1; X.imageSmoothingEnabled = true; X.imageSmoothingQuality = 'high';          // HD sheet: Real-ESRGAN x4 of the recoloured frames
   if (clipY !== null) { X.save(); X.beginPath(); X.rect(-AX - 10, -base - 30, SHEET.fw + 20, clipY + 30); X.clip(); }
+  if (k.napeFill && fr.head && !tipped) { const was = WHITE; WHITE = white;  // trapezius behind the nape: closes the gap to the rear shoulder
+    blob([[hx - 6, hy + 3], [hx - 1, hy + 7], [hx - 2, hy + 14], [hx - 13, hy + 15], [hx - 11, hy + 8]], k.skin); WHITE = was; }
   X.drawImage(sheet, fr.x * hd, fr.y * hd, SHEET.fw * hd, SHEET.fh * hd, -AX, -base, SHEET.fw, SHEET.fh);
   if (fr.head && face && face.width) {                                     // head over the frame's head, facing the way the sprite faces
     const z = k.headScale || 1, hw = 8.5 * z, hh = 10 * z;                // about Ken's head size: a real head, not a caricature

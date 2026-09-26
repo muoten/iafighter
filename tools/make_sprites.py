@@ -46,13 +46,13 @@ def paint_neck(o, head, ramp, slim=False):
     """Ken tucks his chin behind his fist: no neck to keep. Paint one in his pixel style — 1px dark outline,
     shade on the nape side, light on the throat, the jaw's shadow on top — only where the frame is empty,
     so the body stays in front. It runs from under the (raised) head down into the collar."""
-    cx, top, bot = int(round(head[0] - 1)), int(round(head[1] - (2 if slim else 6))), int(round(head[1] + 10))   # top reaches under the raised head
+    cx, top, bot = int(round(head[0] - 1)), int(round(head[1] - (4 if slim else 6))), int(round(head[1] + 10))   # top reaches under the raised head
     out = (ramp[0] * 0.55).astype(np.uint8)
     cols = [out, ramp[1], ramp[1], ramp[1], ramp[1], ramp[2], ramp[3], ramp[3], ramp[3], ramp[2], out]   # wide nape → throat
-    if slim: cols = cols[3:]                                                       # a narrow profile head (Echenique): no wide nape
+    if slim: cols = cols[1:]                                                       # a narrow profile head (Echenique): a slimmer nape, still reaching the shoulder
     for y in range(top, bot + 1):
         for k, c in enumerate(cols):
-            x = cx - 6 + k + (3 if slim else 0)
+            x = cx - 6 + k + (1 if slim else 0)
             if 0 <= y < FH and 0 <= x < FW and o[y, x, 3] == 0:
                 col = ramp[1] if (y - top < 5 and 0 < k < 10) else c                         # under the jaw: in shadow
                 o[y, x, :3] = col; o[y, x, 3] = 255
