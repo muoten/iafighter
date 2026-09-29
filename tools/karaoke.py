@@ -19,18 +19,18 @@ SETS = {  # (index of the original line's first word, its word count, new line)
     (61, 2, '¡Cuidado, cuidado!'),
     (63, 8, 'que mi corazón está colgando en la IA-A-A'),
   ],
-  'podemos': [                                                      # the Podemos parody: la casta, the heavens, Galapagar
-    (1, 7,  'Sabes que estoy colgando en la CAS-TA-A-A'),
+  'podemos': [                                                      # the Podemos parody: in their hands, the heavens, Galapagar
+    (1, 7,  'Las luchas sociales... colgando en sus MA-NO-O-OS'),
     (8, 6,  'salgo del piso de Vallecas'),
-    (14, 7, 'Sabes que estoy colgando en la CAS-TA-A-A'),
+    (14, 7, 'Las luchas sociales... colgando en sus MA-NO-O-OS'),
     (21, 8, 'Te prometí asaltar los cielos, compañero'),
     (29, 5, 'me corté la coleta y me fui a la tele'),
     (34, 7, 'Errejón se marchó, Yolanda nos restó'),
     (41, 5, 'y en Vistalegre, patada giratoria'),
     (46, 7, 'y en el chalet de Galapagar, sí se puede'),
-    (53, 8, 'que mi corazón está colgando en la casta'),
+    (53, 8, 'que mi corazón está colgando en sus manos'),
     (61, 2, '¡Sí se puede, sí se puede!'),
-    (63, 8, 'que mi corazón está colgando en la CAS-TA-A-A'),
+    (63, 8, 'que mi corazón está colgando en sus MA-NO-O-OS'),
   ],
 }
 import sys

@@ -88,13 +88,20 @@ const SHEET = {"fw":70,"fh":80,"hd":4,"base":{"walk":75},"frames":{"walk":[{"x":
 const NAME = { joe:'', dan:'' };                                  // Real-ESRGAN (x4plus-anime) upscale of the recorded stage
 const music = new Audio('game/original_audio.mp3'); music.volume = 0.6;
 const chip = new Audio('game/baute_chip.mp3?v=8711f8f2'); chip.volume = 0.6;              // "Colgando en la IA": Baute's hook as 16-bit chiptune (tools/chiptune.py)
-const KARAOKE = [{"s":0.717,"e":2.936,"w":[["Sabes",[["Sa",0.717],["bes",0.943]]],["que",[["que",1.168]]],["estoy",[["es",1.394],["toy",1.619]]],["colgando",[["col",1.844],["gan",2.069],["do",2.185]]],["en",[["en",2.301]]],["la",[["la",2.417]]],["CAS-TA-A-A",[["CAS",2.533],["TA",2.644],["A",2.754],["A",2.845]]]]},{"s":3.441,"e":7.409,"w":[["salgo",[["sal",3.441],["go",3.663]]],["del",[["del",4.116]]],["piso",[["pi",5.256],["so",5.699]]],["de",[["de",5.932]]],["Vallecas",[["Va",6.839],["lle",7.072],["cas",7.292]]]]},{"s":8.212,"e":15.063,"w":[["Sabes",[["Sa",8.212],["bes",8.443]]],["que",[["que",9.108]]],["estoy",[["es",9.33],["toy",10.026]]],["colgando",[["col",10.702],["gan",11.388],["do",12.074]]],["en",[["en",12.75]]],["la",[["la",12.981]]],["CAS-TA-A-A",[["CAS",13.446],["TA",14.121],["A",14.354],["A",14.575]]]]},{"s":15.261,"e":20.408,"w":[["Te",[["Te",15.261]]],["prometí",[["pro",15.937],["me",16.633],["tí",16.845]]],["asaltar",[["a",17.077],["sal",17.541],["tar",17.773]]],["los",[["los",18.006]]],["cielos,",[["cie",18.237],["los,",18.702]]],["compañero",[["com",18.934],["pa",19.167],["ñe",20.095],["ro",20.327]]]]},{"s":20.559,"e":23.735,"w":[["me",[["me",20.559]]],["corté",[["cor",20.676],["té",20.792]]],["la",[["la",21.024]]],["coleta",[["co",21.256],["le",21.488],["ta",21.72]]],["y",[["y",21.953]]],["me",[["me",22.185]]],["fui",[["fui",22.417]]],["a",[["a",22.649]]],["la",[["la",23.208]]],["tele",[["te",23.43],["le",23.663]]]]},{"s":23.895,"e":27.735,"w":[["Errejón",[["E",23.895],["rre",24.116],["jón",24.338]]],["se",[["se",24.454]]],["marchó,",[["mar",24.57],["chó,",24.686]]],["Yolanda",[["Yo",24.802],["lan",25.477],["da",26.174]]],["nos",[["nos",26.396]]],["restó",[["res",26.617],["tó",27.303]]]]},{"s":27.747,"e":30.881,"w":[["y",[["y",27.747]]],["en",[["en",27.858]]],["Vistalegre,",[["Vis",27.968],["ta",28.2],["le",28.433],["gre,",28.549]]],["patada",[["pa",28.665],["ta",28.897],["da",29.119]]],["giratoria",[["gi",29.572],["ra",30.026],["to",30.481],["ria",30.712]]]]},{"s":30.944,"e":34.662,"w":[["y",[["y",30.944]]],["en",[["en",31.061]]],["el",[["el",31.177]]],["chalet",[["cha",31.398],["let",31.62]]],["de",[["de",31.736]]],["Galapagar,",[["Ga",31.852],["la",32.084],["pa",32.306],["gar,",32.971]]],["sí",[["sí",33.668]]],["se",[["se",33.9]]],["puede",[["pue",34.343],["de",34.565]]]]},{"s":34.786,"e":38.371,"w":[["que",[["que",34.786]]],["mi",[["mi",34.902]]],["corazón",[["co",35.019],["ra",35.251],["zón",35.483]]],["está",[["es",35.715],["tá",35.948]]],["colgando",[["col",36.18],["gan",36.411],["do",36.644]]],["en",[["en",36.876]]],["la",[["la",37.34]]],["casta",[["cas",37.805],["ta",38.037]]]]},{"s":39.568,"e":42.098,"w":[["¡Sí",[["¡Sí",39.568]]],["se",[["se",39.794]]],["puede,",[["pue",40.021],["de,",40.137]]],["sí",[["sí",40.253]]],["se",[["se",41.393]]],["puede!",[["pue",41.847],["de!",42.047]]]]},{"s":42.28,"e":46.089,"w":[["que",[["que",42.28]]],["mi",[["mi",42.512]]],["corazón",[["co",42.744],["ra",42.976],["zón",43.208]]],["está",[["es",43.441],["tá",43.673]]],["colgando",[["col",43.905],["gan",44.137],["do",44.37]]],["en",[["en",44.602]]],["la",[["la",44.834]]],["CAS-TA-A-A",[["CAS",45.066],["TA",45.182],["A",45.298],["A",45.694]]]]}];   // parody lines on the record's phrasing (tools/karaoke.py)
+const KARAOKE = [{"s":0.717,"e":2.936,"w":[["Las",[["Las",0.717]]],["luchas",[["lu",0.943],["chas",1.168]]],["sociales...",[["so",1.394],["cia",1.619],["les...",1.844]]],["colgando",[["col",2.069],["gan",2.146],["do",2.224]]],["en",[["en",2.301]]],["sus",[["sus",2.417]]],["MA-NO-O-OS",[["MA",2.533],["NO",2.644],["O",2.754],["OS",2.845]]]]},{"s":3.441,"e":7.409,"w":[["salgo",[["sal",3.441],["go",3.663]]],["del",[["del",4.116]]],["piso",[["pi",5.256],["so",5.699]]],["de",[["de",5.932]]],["Vallecas",[["Va",6.839],["lle",7.072],["cas",7.292]]]]},{"s":8.212,"e":15.063,"w":[["Las",[["Las",8.212]]],["luchas",[["lu",8.443],["chas",9.108]]],["sociales...",[["so",9.33],["cia",9.794],["les...",10.026]]],["colgando",[["col",10.702],["gan",12.074],["do",12.75]]],["en",[["en",12.981]]],["sus",[["sus",13.214]]],["MA-NO-O-OS",[["MA",13.446],["NO",14.121],["O",14.354],["OS",14.575]]]]},{"s":15.261,"e":20.408,"w":[["Te",[["Te",15.261]]],["prometí",[["pro",15.937],["me",16.633],["tí",16.845]]],["asaltar",[["a",17.077],["sal",17.541],["tar",17.773]]],["los",[["los",18.006]]],["cielos,",[["cie",18.237],["los,",18.702]]],["compañero",[["com",18.934],["pa",19.167],["ñe",20.095],["ro",20.327]]]]},{"s":20.559,"e":23.735,"w":[["me",[["me",20.559]]],["corté",[["cor",20.676],["té",20.792]]],["la",[["la",21.024]]],["coleta",[["co",21.256],["le",21.488],["ta",21.72]]],["y",[["y",21.953]]],["me",[["me",22.185]]],["fui",[["fui",22.417]]],["a",[["a",22.649]]],["la",[["la",23.208]]],["tele",[["te",23.43],["le",23.663]]]]},{"s":23.895,"e":27.735,"w":[["Errejón",[["E",23.895],["rre",24.116],["jón",24.338]]],["se",[["se",24.454]]],["marchó,",[["mar",24.57],["chó,",24.686]]],["Yolanda",[["Yo",24.802],["lan",25.477],["da",26.174]]],["nos",[["nos",26.396]]],["restó",[["res",26.617],["tó",27.303]]]]},{"s":27.747,"e":30.881,"w":[["y",[["y",27.747]]],["en",[["en",27.858]]],["Vistalegre,",[["Vis",27.968],["ta",28.2],["le",28.433],["gre,",28.549]]],["patada",[["pa",28.665],["ta",28.897],["da",29.119]]],["giratoria",[["gi",29.572],["ra",30.026],["to",30.481],["ria",30.712]]]]},{"s":30.944,"e":34.662,"w":[["y",[["y",30.944]]],["en",[["en",31.061]]],["el",[["el",31.177]]],["chalet",[["cha",31.398],["let",31.62]]],["de",[["de",31.736]]],["Galapagar,",[["Ga",31.852],["la",32.084],["pa",32.306],["gar,",32.971]]],["sí",[["sí",33.668]]],["se",[["se",33.9]]],["puede",[["pue",34.343],["de",34.565]]]]},{"s":34.786,"e":38.371,"w":[["que",[["que",34.786]]],["mi",[["mi",34.902]]],["corazón",[["co",35.019],["ra",35.251],["zón",35.483]]],["está",[["es",35.715],["tá",35.948]]],["colgando",[["col",36.18],["gan",36.411],["do",36.644]]],["en",[["en",36.876]]],["sus",[["sus",37.34]]],["manos",[["ma",37.805],["nos",38.037]]]]},{"s":39.568,"e":42.098,"w":[["¡Sí",[["¡Sí",39.568]]],["se",[["se",39.794]]],["puede,",[["pue",40.021],["de,",40.137]]],["sí",[["sí",40.253]]],["se",[["se",41.393]]],["puede!",[["pue",41.847],["de!",42.047]]]]},{"s":42.28,"e":46.089,"w":[["que",[["que",42.28]]],["mi",[["mi",42.512]]],["corazón",[["co",42.744],["ra",42.976],["zón",43.208]]],["está",[["es",43.441],["tá",43.673]]],["colgando",[["col",43.905],["gan",44.137],["do",44.37]]],["en",[["en",44.602]]],["sus",[["sus",44.834]]],["MA-NO-O-OS",[["MA",45.066],["NO",45.182],["O",45.298],["OS",45.694]]]]}];   // parody lines on the record's phrasing (tools/karaoke.py)
 let track = chip;                                                          // jukebox: the chip song, then the original tune, alternating
 music.addEventListener('ended', () => { track = chip; chip.currentTime = 0; if (soundOn && state !== 'over') chip.play().catch(()=>{}); });
 chip.addEventListener('ended', () => { track = music; music.currentTime = 0; if (soundOn && state !== 'over') music.play().catch(()=>{}); });
 const CHIP_START = 16.38;                                                  // each match opens on 'te envío poemas…' (one beat of lead-in)
 function musicStart(){ music.pause(); track = chip; chip.currentTime = CHIP_START; chip.play().catch(()=>{}); }
 function musicPause(){ music.pause(); chip.pause(); }
+// the select screen starts the song from its first chorus, under LAS LUCHAS SOCIALES... COLGANDO EN SUS MANOS; browsers
+// block sound before any click or key, so if it is refused it starts on the first one instead
+let introPending = false;
+function introMusic(){ if (!soundOn || !chip.paused) return; music.pause(); track = chip; chip.currentTime = 0;
+  chip.play().then(() => { introPending = false; }).catch(() => { introPending = true; }); }
+function unlockMusic(){ if (introPending && (state === 'splash' || state === 'select')) { introPending = false; introMusic(); } }
+addEventListener('keydown', unlockMusic, true); addEventListener('pointerdown', unlockMusic, true);
 let soundOn = true;
 
 // ── input: keyboard + touch buttons share one key map ──
@@ -118,7 +125,8 @@ C.addEventListener('pointerdown', e => {                                  // on 
 function toggleSound(){ soundOn = !soundOn; if (!soundOn) musicPause(); else if (state === 'fight') track.play().catch(()=>{}); }
 
 // ── fighters ──
-const SPEED = { joe:1, dan:1.5 }, POWER = { joe:1, dan:1.25 };             // IA_FRA: 50% faster, hits 25% harder
+const CPU = { speed:1.2, power:1.05, react:.5, punish:.55 };        // the CPU's level: wins ~45% vs tools/sim_ai.js's button-masher (was 1.5 / 1.25 / .8 / .9: 96%)
+const SPEED = { joe:1, dan:CPU.speed }, POWER = { joe:1, dan:CPU.power };
 const WORLD = 368;                                                         // arena width: 15% wider than the screen, the camera follows
 const ATK = { punch:{ dur:14, hit:[4,8], reach:30, dmg:7, lunge:5 }, kick:{ dur:20, hit:[7,12], reach:40, dmg:11, lunge:9 },
   spin:{ dur:42, hit:[15,24], reach:44, dmg:13, lunge:6, turn:6, cool:30, rate:1, high:true } };   // spinning back kick: half turn, rear leg straight back, one strong hit
@@ -137,6 +145,7 @@ function audioTap(){                                                       // ro
   return AD;
 }
 function recStart(){
+  if (!RECORD) return;                                                     // only when asked for: #rec, #demo…, #showcase, #song
   if (!window.MediaRecorder || !C.captureStream) return;
   try {
     const st = C.captureStream(60), ad = audioTap();
@@ -156,7 +165,7 @@ const GY = () => ROSTER.length <= COLS ? 92 : 62;            // one row sits mid
 let sel = { side:'joe', cur:0 };
 function slotXY(i){ return [GX + (i % COLS) * (BXW + GAP), GY() + Math.floor(i / COLS) * (BXH + 16)]; }
 function slotAt(x, y){ for (let i = 0; i < ROSTER.length; i++) { const [sx, sy] = slotXY(i); if (x >= sx && x < sx + BXW && y >= sy && y < sy + BXH) return i; } return -1; }
-function selectStart(){ state = 'select'; sel = { side:'joe', cur:PICK.joe }; for (const k in edge) edge[k] = false; }   // the press that opened it does not also pick
+function selectStart(){ introMusic(); state = 'select'; sel = { side:'joe', cur:PICK.joe }; for (const k in edge) edge[k] = false; }   // the press that opened it does not also pick
 function choose(){
   cast(sel.side, sel.cur);
   if (sel.side === 'joe') { sel = { side:'dan', cur:PICK.dan }; return; }
@@ -229,9 +238,9 @@ function danAI(){
   const threat = joe.state === 'attack' && joe.t < ATK[joe.atk].hit[0] && d < ATK[joe.atk].reach + 18;
   const whiff = joe.state === 'attack' && joe.t > ATK[joe.atk].hit[1];                 // player is recovering: free hit
   if (threat && ai.react !== joe) { ai.react = joe;                                    // see the wind-up, react once
-    if (Math.random() < .8) { ai.want = joe.atk === 'punch' ? 'crouch' : 'back'; ai.t = 12; } }       // duck punches, step out of kicks
+    if (Math.random() < CPU.react) { ai.want = joe.atk === 'punch' ? 'crouch' : 'back'; ai.t = 12; } }       // duck punches, step out of kicks
   if (joe.state !== 'attack') ai.react = null;
-  if (whiff && d < 60 && Math.random() < .9) { if (d < 44) { inp.punchE = true; return inp; } if (Math.random() < .5) { inp.kickE = true; return inp; } inp[toward] = true; }   // punch if close, else kick or step in
+  if (whiff && d < 60 && Math.random() < CPU.punish) { if (d < 44) { inp.punchE = true; return inp; } if (Math.random() < .5) { inp.kickE = true; return inp; } inp[toward] = true; }   // punch if close, else kick or step in
   if (--ai.t <= 0) { ai.t = 8 + Math.random() * 18 | 0;
     ai.want = d > 70 ? (Math.random() < .85 ? 'approach' : 'jump')
             : d > 46 ? ['punch', 'spin', 'spin', 'spin', 'kick', 'approach', 'jump'][Math.random() * 7 | 0]  // 'punch'/'spin' walk in first
@@ -249,6 +258,7 @@ function danAI(){
 
 // ── demo (index.html#demo): the CPU also plays Congui, so a match can be recorded unattended ──
 const SHOWCASE = location.hash === '#showcase';                              // #showcase: CPU vs CPU, the whole match in one recording
+const RECORD = /^#(rec|demo|showcase|song)/.test(location.hash);           // normal play records nothing
 const DEMO = location.hash.startsWith('#demo') || SHOWCASE, DEMO_ROUND = +location.hash.slice(5) || 1;   // #demo2 = record round 2
 function congBot(){
   const d = Math.abs(dan.x - joe.x), inp = { left:false, right:false, down:false, upE:false, punchE:false, kickE:false, spinE:false };
@@ -672,14 +682,15 @@ function drawSplash(){
   if (t > 1.6) logoText('PODEMOS', W / 2, -30 + ease((t - 1.6) / .45) * 106, 26, '#c58cff', '#7a2fb0');
   if (t > 2.2) { const k = ease((t - 2.2) / .3); logoText('FIGHTER', W / 2, 112, 26, '#ffe066', '#ff5a1f', 3 - 2 * k); }
   X.restore();
-  if (t > 3) text('COLGANDO EN LA CASTA', 142, 6, '#e8ec5a');
+  if (t > 3) text('LAS LUCHAS SOCIALES...', 145, 7, '#e8ec5a');           // ...finished on the select screen
   if (t > 3.6 && Math.floor(t * 2.5) % 2 === 0) text('PRESS START', 212, 8, '#e9edf5');
 }
 function drawSelect(){
   X.fillStyle = 'rgba(0,0,0,.62)'; X.fillRect(0, TOP, W, H - TOP);
   logoText('PODEMOS FIGHTER', W / 2, 22, 13, '#c58cff', '#7a2fb0');      // the empty HUD strip carries the logo
   const P1 = '#3456ff', CPU = '#ff5a3c', blink = Math.floor(performance.now() / 180) % 2;
-  text(sel.side === 'joe' ? 'PLAYER 1 · HUMAN' : 'PLAYER 2 · CPU', 51, 7, sel.side === 'joe' ? '#8fa2ff' : '#ff8f7a');
+  text('...COLGANDO EN SUS MANOS', 54, 6, '#e8ec5a');                      // the phrase the intro began
+  text(sel.side === 'joe' ? 'PLAYER 1 · HUMAN' : 'PLAYER 2 · CPU', 75, 7, sel.side === 'joe' ? '#8fa2ff' : '#ff8f7a');
   ROSTER.forEach((r, i) => {
     const [x, y] = slotXY(i), f = img['f_' + r.id];
     X.fillStyle = '#1a1d28'; X.fillRect(x, y, BXW, BXH);
