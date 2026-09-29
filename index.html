@@ -102,8 +102,10 @@ function musicPause(){ music.pause(); chip.pause(); }
 let introPending = false;
 function introMusic(){ if (!soundOn || !chip.paused) return; music.pause(); track = chip; chip.currentTime = 0;
   chip.play().then(() => { introPending = false; }).catch(() => { introPending = true; }); }
-function unlockMusic(){ if (introPending && (state === 'splash' || state === 'select')) { introPending = false; introMusic(); } }
-addEventListener('keydown', unlockMusic, true); addEventListener('pointerdown', unlockMusic, true);
+function unlockMusic(){ if ((introPending || chip.paused) && soundOn && (state === 'splash' || state === 'select')) { introPending = false; introMusic(); } }
+// a TOUCH only unlocks sound when it ENDS (pointerdown on a phone does not count as a user gesture), so the tap that
+// opens the select screen retries on its own pointerup / touchend
+for (const ev of ['keydown', 'pointerdown', 'pointerup', 'touchend', 'click']) addEventListener(ev, unlockMusic, true);
 let soundOn = true;
 
 // ── input: keyboard + touch buttons share one key map ──
@@ -646,7 +648,7 @@ function karaoke(){                                                         // l
   if (KT === null && (track !== chip || chip.paused)) return;
   const t = KT ?? chip.currentTime, L = KARAOKE.find(l => t >= l.s - .3 && t <= l.e); if (!L) return;
   X.font = '6px "Press Start 2P", monospace'; X.textBaseline = 'top'; X.textAlign = 'left';
-  const line = L.w.map(w => w[0]).join(' '), tw = X.measureText(line).width; let x = (W - tw) / 2; const y = TOP + 5;
+  const line = L.w.map(w => w[0]).join(' '), tw = X.measureText(line).width; let x = (W - tw) / 2; const y = TOP + 11;   // clear of the HUD
   X.fillStyle = 'rgba(0,0,0,.55)'; X.fillRect(x - 4, y - 3, tw + 8, 12);
   for (const [word, syl] of L.w) {                                        // syllable by syllable, each lit on its own note
     let rest = word;
