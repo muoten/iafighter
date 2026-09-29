@@ -1,6 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Joe vs Dan</title>
+<title>Podemos Fighter</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
 <style>
@@ -62,14 +62,33 @@ const W = 320, H = 236, TOP = 42, GROUND = 226;
 const img = {}, need = [];
 function load(key, src){ const i = new Image(); i.src = src; img[key] = i; need.push(new Promise(r => { i.onload = r; i.onerror = r; })); }
 load('stage', 'img/stage_hd.jpg');
-load('face_joe', 'img/face_iglesias.png'); load('face_dan', 'img/face_echenique.png');   // Wikimedia Commons photos (CC BY-SA), drawn in the sprite style
+// ── the roster: each fighter can be picked on either side (select screen), faces: Wikimedia Commons photos,
+//    CC BY / BY-SA, drawn in the sprite style. `look` = the head fit, `chair` = fights from a wheelchair ──
+const ROSTER_ALL = [
+  { id:'errejon',    name:'ERREJON',    face:'img/face_errejon.png',    look:{ headScale:1.15 } },   // Commons 'Íñigo Errejón 2015b', CC BY 3.0, mirrored
+  { id:'iafra',      name:'IA_FRA',     face:'img/face_afra.png',       look:{ headScale:1.15 } },
+  { id:'iglesias',   name:'IGLESIAS',   face:'img/face_iglesias.png',   look:{ headScale:1.12 } },
+  { id:'echenique',  name:'ECHENIQUE',  face:'img/face_echenique.png',  look:{ headScale:1.3, headUp:-3.5, napeFill:true }, chair:true },
+  { id:'sanchez',    name:'SANCHEZ',    face:'img/face_sanchez.png',    look:{ headScale:1.15 } },
+  { id:'soto',       name:'SOTO IVARS', face:'img/face_soto.png',       look:{ headScale:1.2 } },
+  { id:'montero',    name:'MONTERO',    face:'img/face_montero.png',    look:{ headScale:1.15 } },
+  { id:'etxebarria', name:'ETXEBARRIA', face:'img/face_etxebarria.png', look:{ headScale:1.2 } },
+];
+const ACTIVE = ['errejon', 'echenique', 'iglesias', 'montero'];        // who is on the select screen for now (the rest stay defined)
+const ROSTER = ACTIVE.map(id => ROSTER_ALL.find(r => r.id === id));
+for (const r of ROSTER) load('f_' + r.id, r.face);
+const CASTS = { iglesias:['iglesias', 'echenique'], soto:['sanchez', 'soto'], montero:['montero', 'etxebarria'], congui:['errejon', 'iafra'] };   // ?cast=… preselects a pair
+const PICK = { joe: 0, dan: 0 };
+{ const [a, b] = CASTS[new URLSearchParams(location.search).get('cast')] || CASTS[window.DEFAULT_CAST] || CASTS.iglesias;
+  PICK.joe = Math.max(0, ROSTER.findIndex(r => r.id === a)); PICK.dan = Math.max(0, ROSTER.findIndex(r => r.id === b));
+  if (PICK.dan === PICK.joe) PICK.dan = (PICK.joe + 1) % ROSTER.length; }
 //   // player heads: photos drawn in the sprite style (tools/stylize_heads.py)
 load('spr_joe', 'img/sprites_congui.webp'); load('spr_dan', 'img/sprites_iafra.webp'); // bodies: Ken's SSF2 frames, palette-swapped (tools/make_sprites.py)
 const SHEET = {"fw":70,"fh":80,"hd":4,"base":{"walk":75},"frames":{"walk":[{"x":0,"y":0,"head":[22.550442148651868,11.700649544793531],"waist":[24.46153846153846,40.15384615384615],"tilted":13},{"x":70,"y":0,"head":[28.667917120488205,12.004277332433098],"waist":[27.964285714285715,44.67857142857143],"tilted":13},{"x":140,"y":0,"head":[42.483387506483936,13.68607542453394],"waist":[40.47560975609756,47.329268292682926],"tilted":13},{"x":210,"y":0,"head":[44.7083385608278,14.660445489319173],"waist":[42.47560975609756,47.329268292682926],"tilted":13}],"idle":[{"x":0,"y":80,"head":[31.49097015171843,7.841566454422441],"waist":[29.66176470588235,36.98529411764706],"tilted":13},{"x":70,"y":80,"head":[32.604734413710936,7.145336400839486],"waist":[32.05172413793103,35.63793103448276],"tilted":13},{"x":140,"y":80,"head":[32.516600086933195,8.066517508766303],"waist":[31.66176470588235,36.98529411764706],"tilted":13},{"x":210,"y":80,"head":[30.81834887220945,7.281742729329967],"waist":[31.257142857142856,39.15714285714286],"tilted":13}],"punch":[{"x":0,"y":160,"head":[30.364289499500458,6.959116404316369],"waist":[29.114285714285714,36.6],"tilted":13},{"x":70,"y":160,"head":[29.64164116260778,8.536257852506981],"waist":[30.785714285714285,36.67142857142857],"tilted":13},{"x":140,"y":160,"head":[31.389919434715225,7.18406745866023],"waist":[31.114285714285714,36.6],"tilted":13}],"kick":[{"x":0,"y":240,"head":[34.36428949950046,6.959116404316369],"waist":[33.114285714285714,36.6],"tilted":13},{"x":70,"y":240,"head":[31,8],"waist":[31.333333333333332,37.05128205128205]},{"x":140,"y":240,"head":[14,9],"waist":[24.3015873015873,34.888888888888886]},{"x":210,"y":240,"head":[32,8],"waist":[32.333333333333336,37.05128205128205]},{"x":280,"y":240,"head":[34.389919434715225,7.18406745866023],"waist":[34.114285714285714,36.6],"tilted":13}],"spin":[{"x":0,"y":320,"head":[13,26],"waist":[32.75,31.25]},{"x":70,"y":320,"head":[6,27],"waist":[26.529411764705884,40.14705882352941]},{"x":140,"y":320,"head":[7,22],"waist":[25.23076923076923,33.23076923076923]},{"x":210,"y":320,"head":[14,20],"waist":[29.166666666666668,38.333333333333336]},{"x":280,"y":320,"head":[22,17],"waist":[34.0,28.0]}],"jump":[{"x":0,"y":400,"head":[33.58950426497948,10.849725082662566],"waist":[31.746835443037973,39.55696202531646],"tilted":13},{"x":70,"y":400,"head":[29,10],"waist":[27.804878048780488,37.53658536585366]},{"x":140,"y":400,"head":[36,8],"waist":[28.925,38.975]},{"x":210,"y":400,"head":[39,8],"waist":[32.875,32.125]},{"x":280,"y":400,"head":[36,8],"waist":[28.925,38.975]},{"x":350,"y":400,"head":[29,10],"waist":[29.804878048780488,37.53658536585366]},{"x":420,"y":400,"head":[35.58950426497948,10.849725082662566],"waist":[33.74683544303797,39.55696202531646],"tilted":13}],"crouch":[{"x":0,"y":480,"head":[40,34],"waist":[31.82608695652174,59.82608695652174]}]}};
-const NAME = { joe:'IGLESIAS', dan:'ECHENIQUE' };                                   // Real-ESRGAN (x4plus-anime) upscale of the recorded stage
+const NAME = { joe:'', dan:'' };                                  // Real-ESRGAN (x4plus-anime) upscale of the recorded stage
 const music = new Audio('original_audio.mp3'); music.volume = 0.6;
 const chip = new Audio('baute_chip.mp3?v=8711f8f2'); chip.volume = 0.6;              // "Colgando en la IA": Baute's hook as 16-bit chiptune (tools/chiptune.py)
-const KARAOKE = [{"s":0.717,"e":2.936,"w":[["Sabes",[["Sa",0.717],["bes",0.943]]],["que",[["que",1.168]]],["estoy",[["es",1.394],["toy",1.619]]],["colgando",[["col",1.844],["gan",2.069],["do",2.185]]],["en",[["en",2.301]]],["la",[["la",2.417]]],["IA-A-A",[["I",2.533],["A",2.644],["A",2.754],["A",2.845]]]]},{"s":3.441,"e":7.409,"w":[["así",[["a",3.441],["sí",3.663]]],["que",[["que",4.116]]],["no",[["no",5.256]]],["me",[["me",5.699]]],["dejes",[["de",5.932],["jes",6.839]]],["perder",[["per",7.072],["der",7.292]]]]},{"s":8.212,"e":15.063,"w":[["Sabes",[["Sa",8.212],["bes",8.443]]],["que",[["que",9.108]]],["estoy",[["es",9.33],["toy",10.026]]],["colgando",[["col",10.702],["gan",11.388],["do",12.074]]],["en",[["en",12.75]]],["la",[["la",12.981]]],["IA-A-A",[["I",13.446],["A",14.121],["A",14.354],["A",14.575]]]]},{"s":15.261,"e":20.408,"w":[["Te",[["Te",15.261]]],["escribo",[["es",15.937],["cri",16.633],["bo",16.845]]],["poemas",[["po",17.308],["e",17.541],["mas",17.773]]],["con",[["con",18.237]]],["IA",[["I",18.469],["A",18.934]]],["de",[["de",19.167]]],["Afra",[["A",20.095],["fra",20.327]]]]},{"s":20.559,"e":23.735,"w":[["te",[["te",20.559]]],["mando",[["man",20.792],["do",21.024]]],["canciones",[["can",21.256],["cio",21.488],["nes",21.72]]],["y",[["y",22.185]]],["graciosidades",[["gra",22.417],["cio",22.649],["si",23.208],["da",23.43],["des",23.663]]]]},{"s":23.895,"e":27.735,"w":[["te",[["te",23.895]]],["mando",[["man",24.116],["do",24.338]]],["las",[["las",24.454]]],["fotos",[["fo",24.57],["tos",24.686]]],["de",[["de",24.802]]],["Congui",[["Con",25.477],["gui",26.174]]],["en",[["en",26.396]]],["guardia",[["guar",26.617],["dia",27.303]]]]},{"s":27.747,"e":30.881,"w":[["y",[["y",27.747]]],["cuando",[["cuan",27.858],["do",27.968]]],["le",[["le",28.2]]],["diste",[["dis",28.433],["te",28.549]]],["la",[["la",28.665]]],["patada",[["pa",28.781],["ta",28.897],["da",29.119]]],["giratoria",[["gi",29.572],["ra",30.026],["to",30.481],["ria",30.712]]]]},{"s":30.944,"e":34.662,"w":[["y",[["y",30.944]]],["así",[["a",31.061],["sí",31.177]]],["me",[["me",31.398]]],["recuerdes,",[["re",31.62],["cuer",31.736],["des,",31.852]]],["IA_FRA,",[["I",32.084],["A",32.306],["FRA,",32.971]]],["en",[["en",33.668]]],["tu",[["tu",33.9]]],["mente",[["men",34.343],["te",34.565]]]]},{"s":34.786,"e":38.371,"w":[["que",[["que",34.786]]],["mi",[["mi",34.902]]],["corazón",[["co",35.019],["ra",35.251],["zón",35.483]]],["está",[["es",35.715],["tá",35.948]]],["colgando",[["col",36.18],["gan",36.411],["do",36.644]]],["en",[["en",36.876]]],["la",[["la",37.34]]],["IA",[["I",37.805],["A",38.037]]]]},{"s":39.568,"e":42.098,"w":[["¡Cuidado,",[["¡Cui",39.568],["da",40.021],["do,",40.253]]],["cuidado!",[["cui",41.393],["da",41.847],["do!",42.047]]]]},{"s":42.28,"e":46.089,"w":[["que",[["que",42.28]]],["mi",[["mi",42.512]]],["corazón",[["co",42.744],["ra",42.976],["zón",43.208]]],["está",[["es",43.441],["tá",43.673]]],["colgando",[["col",43.905],["gan",44.137],["do",44.37]]],["en",[["en",44.602]]],["la",[["la",44.834]]],["IA-A-A",[["I",45.066],["A",45.182],["A",45.298],["A",45.694]]]]}];   // parody lines on the record's phrasing (tools/karaoke.py)
+const KARAOKE = [{"s":0.717,"e":2.936,"w":[["Sabes",[["Sa",0.717],["bes",0.943]]],["que",[["que",1.168]]],["estoy",[["es",1.394],["toy",1.619]]],["colgando",[["col",1.844],["gan",2.069],["do",2.185]]],["en",[["en",2.301]]],["la",[["la",2.417]]],["CAS-TA-A-A",[["CAS",2.533],["TA",2.644],["A",2.754],["A",2.845]]]]},{"s":3.441,"e":7.409,"w":[["salgo",[["sal",3.441],["go",3.663]]],["del",[["del",4.116]]],["piso",[["pi",5.256],["so",5.699]]],["de",[["de",5.932]]],["Vallecas",[["Va",6.839],["lle",7.072],["cas",7.292]]]]},{"s":8.212,"e":15.063,"w":[["Sabes",[["Sa",8.212],["bes",8.443]]],["que",[["que",9.108]]],["estoy",[["es",9.33],["toy",10.026]]],["colgando",[["col",10.702],["gan",11.388],["do",12.074]]],["en",[["en",12.75]]],["la",[["la",12.981]]],["CAS-TA-A-A",[["CAS",13.446],["TA",14.121],["A",14.354],["A",14.575]]]]},{"s":15.261,"e":20.408,"w":[["Te",[["Te",15.261]]],["prometí",[["pro",15.937],["me",16.633],["tí",16.845]]],["asaltar",[["a",17.077],["sal",17.541],["tar",17.773]]],["los",[["los",18.006]]],["cielos,",[["cie",18.237],["los,",18.702]]],["compañero",[["com",18.934],["pa",19.167],["ñe",20.095],["ro",20.327]]]]},{"s":20.559,"e":23.735,"w":[["me",[["me",20.559]]],["corté",[["cor",20.676],["té",20.792]]],["la",[["la",21.024]]],["coleta",[["co",21.256],["le",21.488],["ta",21.72]]],["y",[["y",21.953]]],["me",[["me",22.185]]],["fui",[["fui",22.417]]],["a",[["a",22.649]]],["la",[["la",23.208]]],["tele",[["te",23.43],["le",23.663]]]]},{"s":23.895,"e":27.735,"w":[["Errejón",[["E",23.895],["rre",24.116],["jón",24.338]]],["se",[["se",24.454]]],["marchó,",[["mar",24.57],["chó,",24.686]]],["Yolanda",[["Yo",24.802],["lan",25.477],["da",26.174]]],["nos",[["nos",26.396]]],["restó",[["res",26.617],["tó",27.303]]]]},{"s":27.747,"e":30.881,"w":[["y",[["y",27.747]]],["en",[["en",27.858]]],["Vistalegre,",[["Vis",27.968],["ta",28.2],["le",28.433],["gre,",28.549]]],["patada",[["pa",28.665],["ta",28.897],["da",29.119]]],["giratoria",[["gi",29.572],["ra",30.026],["to",30.481],["ria",30.712]]]]},{"s":30.944,"e":34.662,"w":[["y",[["y",30.944]]],["en",[["en",31.061]]],["el",[["el",31.177]]],["chalet",[["cha",31.398],["let",31.62]]],["de",[["de",31.736]]],["Galapagar,",[["Ga",31.852],["la",32.084],["pa",32.306],["gar,",32.971]]],["sí",[["sí",33.668]]],["se",[["se",33.9]]],["puede",[["pue",34.343],["de",34.565]]]]},{"s":34.786,"e":38.371,"w":[["que",[["que",34.786]]],["mi",[["mi",34.902]]],["corazón",[["co",35.019],["ra",35.251],["zón",35.483]]],["está",[["es",35.715],["tá",35.948]]],["colgando",[["col",36.18],["gan",36.411],["do",36.644]]],["en",[["en",36.876]]],["la",[["la",37.34]]],["casta",[["cas",37.805],["ta",38.037]]]]},{"s":39.568,"e":42.098,"w":[["¡Sí",[["¡Sí",39.568]]],["se",[["se",39.794]]],["puede,",[["pue",40.021],["de,",40.137]]],["sí",[["sí",40.253]]],["se",[["se",41.393]]],["puede!",[["pue",41.847],["de!",42.047]]]]},{"s":42.28,"e":46.089,"w":[["que",[["que",42.28]]],["mi",[["mi",42.512]]],["corazón",[["co",42.744],["ra",42.976],["zón",43.208]]],["está",[["es",43.441],["tá",43.673]]],["colgando",[["col",43.905],["gan",44.137],["do",44.37]]],["en",[["en",44.602]]],["la",[["la",44.834]]],["CAS-TA-A-A",[["CAS",45.066],["TA",45.182],["A",45.298],["A",45.694]]]]}];   // parody lines on the record's phrasing (tools/karaoke.py)
 let track = chip;                                                          // jukebox: the chip song, then the original tune, alternating
 music.addEventListener('ended', () => { track = chip; chip.currentTime = 0; if (soundOn && state !== 'over') chip.play().catch(()=>{}); });
 chip.addEventListener('ended', () => { track = music; music.currentTime = 0; if (soundOn && state !== 'over') music.play().catch(()=>{}); });
@@ -80,7 +99,7 @@ let soundOn = true;
 
 // ── input: keyboard + touch buttons share one key map ──
 const K = { left:false, right:false, up:false, down:false, punch:false, kick:false, spin:false };
-const edge = { punch:false, kick:false, spin:false, up:false };
+const edge = { punch:false, kick:false, spin:false, up:false, down:false, left:false, right:false };
 const keymap = { KeyA:'left', ArrowLeft:'left', KeyD:'right', ArrowRight:'right', KeyW:'up', ArrowUp:'up', KeyS:'down', ArrowDown:'down', KeyJ:'punch', KeyK:'kick', KeyL:'spin' };
 function press(k, v){ if (v && !K[k] && k in edge) edge[k] = true; K[k] = v; }
 addEventListener('keydown', e => { if (keymap[e.code]) { press(keymap[e.code], true); e.preventDefault(); }
@@ -88,11 +107,14 @@ addEventListener('keydown', e => { if (keymap[e.code]) { press(keymap[e.code], t
 addEventListener('keyup', e => { if (keymap[e.code]) press(keymap[e.code], false); });
 document.querySelectorAll('#pad button').forEach(b => {
   const k = b.dataset.k;
-  const on = e => { e.preventDefault(); b.classList.add('on'); press(k, true); if (state === 'title' || state === 'over') startOrNext(); };
+  const on = e => { e.preventDefault(); b.classList.add('on'); press(k, true); if (state === 'title' || state === 'over' || state === 'splash') startOrNext(); };
   const off = e => { e.preventDefault(); b.classList.remove('on'); press(k, false); };
   b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off);
 });
-C.addEventListener('pointerdown', () => startOrNext());
+C.addEventListener('pointerdown', e => {                                  // on the select screen a tap picks the portrait under it
+  if (state === 'select') { const b = C.getBoundingClientRect(), i = slotAt((e.clientX - b.left) / b.width * W, (e.clientY - b.top) / b.height * H);
+    if (i >= 0) { sel.cur = i; choose(); } return; }
+  startOrNext(); });
 function toggleSound(){ soundOn = !soundOn; if (!soundOn) musicPause(); else if (state === 'fight') track.play().catch(()=>{}); }
 
 // ── fighters ──
@@ -101,7 +123,7 @@ const WORLD = 368;                                                         // ar
 const ATK = { punch:{ dur:14, hit:[4,8], reach:30, dmg:7, lunge:5 }, kick:{ dur:20, hit:[7,12], reach:40, dmg:11, lunge:9 },
   spin:{ dur:42, hit:[15,24], reach:44, dmg:13, lunge:6, turn:6, cool:30, rate:1, high:true } };   // spinning back kick: half turn, rear leg straight back, one strong hit
 function fighter(who, x, dir){ return { who, x, y:GROUND, vx:0, vy:0, dir, hp:100, state:'idle', t:0, atk:null, hitDone:false, frame:0, flash:0, score:0, wins:0, crouch:false }; }
-let joe, dan, timer, round, state = 'title', banner = '', bannerT = 0, sparks = [], ai = { t:0, want:'idle' };
+let joe, dan, timer, round, state = 'splash', splashT = 0, banner = '', bannerT = 0, sparks = [], ai = { t:0, want:'idle' };
 
 function newRound(){ joe = Object.assign(joe || fighter('joe'), { x:114, y:GROUND, vx:0, vy:0, dir:1, hp:100, state:'idle', t:0, atk:null, flash:0 });
   dan = Object.assign(dan || fighter('dan'), { x:254, y:GROUND, vx:0, vy:0, dir:-1, hp:100, state:'idle', t:0, atk:null, flash:0 });
@@ -123,12 +145,35 @@ function recStart(){
     const r = new MediaRecorder(st, { mimeType: mime, videoBitsPerSecond: 8e6 }), chunks = [];
     r.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
     r.onstop = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(chunks, { type: mime }));
-      a.download = `iglesias_vs_echenique_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.${mime.startsWith('video/mp4') ? 'mp4' : 'webm'}`; a.click(); };
+      a.download = `${ROSTER[PICK.joe].id}_vs_${ROSTER[PICK.dan].id}_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.${mime.startsWith('video/mp4') ? 'mp4' : 'webm'}`; a.click(); };
     r.start(1000); rec = r; document.getElementById('rec').hidden = false;
   } catch (e) { rec = null; }
 }
 function recStop(){ if (rec && rec.state !== 'inactive') rec.stop(); rec = null; document.getElementById('rec').hidden = true; }
-function startOrNext(){
+// ── character select: player 1 first, then the CPU rival; ←→↑↓ move, PUNCH/Enter picks, KICK goes back ──
+const COLS = 4, BXW = 64, BXH = 58, GAP = 10, GX = (320 - (COLS * BXW + (COLS - 1) * GAP)) / 2;
+const GY = () => ROSTER.length <= COLS ? 92 : 62;            // one row sits mid-screen
+let sel = { side:'joe', cur:0 };
+function slotXY(i){ return [GX + (i % COLS) * (BXW + GAP), GY() + Math.floor(i / COLS) * (BXH + 16)]; }
+function slotAt(x, y){ for (let i = 0; i < ROSTER.length; i++) { const [sx, sy] = slotXY(i); if (x >= sx && x < sx + BXW && y >= sy && y < sy + BXH) return i; } return -1; }
+function selectStart(){ state = 'select'; sel = { side:'joe', cur:PICK.joe }; for (const k in edge) edge[k] = false; }   // the press that opened it does not also pick
+function choose(){
+  cast(sel.side, sel.cur);
+  if (sel.side === 'joe') { sel = { side:'dan', cur:PICK.dan }; return; }
+  state = 'title'; startOrNext(true);
+}
+function selectStep(){
+  const n = ROSTER.length, rows = Math.ceil(n / COLS);
+  if (edge.left) sel.cur = (sel.cur + n - 1) % n;
+  if (edge.right) sel.cur = (sel.cur + 1) % n;
+  if (edge.up || edge.down) sel.cur = (sel.cur + COLS * (edge.down ? 1 : rows - 1)) % (COLS * rows) % n;
+  if (edge.punch) choose();
+  else if (edge.kick && sel.side === 'dan') sel = { side:'joe', cur:PICK.joe };
+}
+function startOrNext(go){
+  if (state === 'splash') { selectStart(); return; }                     // any key skips the intro, straight to the select screen
+  if (state === 'select') { choose(); return; }
+  if ((state === 'title' || state === 'over') && !go && !DEMO) { selectStart(); return; }
   if (state === 'title' || state === 'over') { joe = fighter('joe', 114, 1); dan = fighter('dan', 254, -1); round = DEMO ? DEMO_ROUND : 1;
     if (DEMO) { dan.wins = round >= 2 ? 1 : 0; joe.wins = round >= 3 ? 1 : 0; dan.score = 6000 * dan.wins; joe.score = 6000 * joe.wins; } newRound();   // demo: round 2 = 0-1, round 3 = 1-1
     if (soundOn) musicStart();
@@ -218,7 +263,9 @@ function congBot(){
 // ── loop ──
 let last = 0, secT = 0;
 function step(){
-  if (state === 'intro') { if (--bannerT <= 0) { banner = 'FIGHT'; bannerT = 40; state = 'fight'; } }
+  if (state === 'splash') { if (++splashT > SPLASH * 60) selectStart(); }
+  else if (state === 'select') selectStep();
+  else if (state === 'intro') { if (--bannerT <= 0) { banner = 'FIGHT'; bannerT = 40; state = 'fight'; } }
   else if (state === 'fight') {
     const pin = DEMO ? congBot() : { left:K.left, right:K.right, down:K.down, upE:edge.up, punchE:edge.punch, kickE:edge.kick, spinE:edge.spin };
     control(joe, dan, pin); control(dan, joe, danAI());
@@ -229,8 +276,8 @@ function step(){
                           else if (joe.wins === 2 || dan.wins === 2) { state = 'over'; banner = `${NAME[joe.wins === 2 ? 'joe' : 'dan']} WINS THE MATCH`; if (SHOWCASE) setTimeout(() => { recStop(); musicPause(); }, 3500); else musicPause(); }
                           else { round++; newRound(); } }
   }
-  edge.up = edge.punch = edge.kick = edge.spin = false;
-  if (state !== 'title') { physics(joe); physics(dan);
+  edge.up = edge.punch = edge.kick = edge.spin = edge.down = edge.left = edge.right = false;
+  if (state !== 'title' && state !== 'select' && state !== 'splash') { physics(joe); physics(dan);
     const gap = Math.abs(joe.x - dan.x) - (W - 40);                        // both must stay on screen: no running away from the camera
     if (gap > 0) { const back = gap / 2 * (joe.x < dan.x ? 1 : -1); joe.x += back; dan.x -= back; }
     if (state === 'fight' && Math.abs(joe.x - dan.x) < 26) { const push = (26 - Math.abs(joe.x - dan.x)) / 2 * (joe.x < dan.x ? 1 : -1); joe.x -= push; dan.x += push; } }
@@ -246,8 +293,15 @@ const LOOK = {
   joe: { skin:'#e0a684', skinD:'#b07558', top:'#eeece8', topD:'#b8b4ae', pants:'#8db0d4', pantsD:'#5b7ea6', belt:'#3b3331', boot:'#e0a684', shoe:'#f4f4f4',
          hair:'#3a2a22', hairD:'#1f1612', wrist:null, style:'short', broad:12, tee:true, shortsAt:0.18, matte:true, faceDx:3, headScale:1.12, neck:'#c98a66' },   // Congui: white tee + black pocket, denim shorts
   dan: { skin:'#ecb892', skinD:'#b98060', top:'#17151d', topD:'#45404f', pants:'#3f64b4', pantsD:'#26427e', belt:'#6b4a2b', boot:'#1d1a22', shoe:'#1d1a22',
-         hair:'#e8c983', hairD:'#b8954c', wrist:null, style:'long', broad:10, necklace:'#dcae3e', matte:true, headScale:1.3, faceDx:2, neck:'#dba684', headUp:-3.5, napeFill:true },   // Afra Blanco: black V-neck, gold necklace, jeans
+         hair:'#e8c983', hairD:'#b8954c', wrist:null, style:'long', broad:10, necklace:'#dcae3e', matte:true, headScale:1.15, faceDx:2, neck:'#dba684' },   // Afra Blanco: black V-neck, gold necklace, jeans
 };
+const LOOK0 = { joe: { ...LOOK.joe }, dan: { ...LOOK.dan } };
+function cast(who, i){                                                     // put roster fighter i on side `who`: the body stays the side's, the head is theirs
+  const r = ROSTER[i]; PICK[who] = i; NAME[who] = r.name; CHAIR[who] = !!r.chair;
+  img['face_' + who] = img['f_' + r.id]; delete NECK[who];
+  LOOK[who] = Object.assign({ ...LOOK0[who] }, { headUp:0, napeFill:false }, r.look);
+}
+
 const PO = {
   idle:   { lean:8,   fT:26,  fS:-4,  bT:-22, bS:-12, fU:40,  fF:160, bU:18,  bF:150, head:0 },
   crouch: { lean:24,  fT:80,  fS:-14, bT:10,  bS:-76, fU:52,  fF:166, bU:30,  bF:150, head:-8 },
@@ -489,7 +543,7 @@ function drawSprite(who, name, i, x, y, dir, white, rot = 0, clipY = null){
   X.restore();
 }
 // ── the wheelchair fighter (ECHENIQUE): SF2 upper body from the sheet, the chair drawn with the same shading + outline ──
-const CHAIR = { dan: true };
+const CHAIR = {};
 const CH = { frame:'#3d414c', tire:'#1c1c22', rim:'#c3c8d2', seat:'#4b2c6e', hub:'#8a909c' };
 function seatedPose(f){                                                    // which upper-body frame, and how the chair tilts
   const now = performance.now() / 1000, idle = ['idle', [0, 1, 2, 3, 2, 1][Math.floor(now * 7) % 6]];
@@ -558,7 +612,9 @@ function hud(){
   bar(12, 118, joe ? joe.hp : 100, true); bar(190, 118, dan ? dan.hp : 100, false);
   X.fillStyle = '#111'; X.fillRect(138, 13, 44, 16); X.strokeStyle = '#555'; X.strokeRect(138.5, 13.5, 43, 15);
   X.fillStyle = '#ff2a1f'; X.font = '10px "Press Start 2P", monospace'; X.textAlign = 'center'; X.fillText(String(timer ?? 99).padStart(2, '0'), 160, 16); X.textAlign = 'left';
-  X.strokeStyle = '#c1271c'; X.strokeRect(70.5, 30.5, 38, 7); X.strokeRect(209.5, 30.5, 38, 7);        // the empty red boxes of the original HUD
+  X.strokeStyle = '#c1271c'; X.strokeRect(78.5, 30.5, 32, 7); X.strokeRect(209.5, 30.5, 32, 7);        // the red boxes of the original HUD:
+  X.fillStyle = '#ff5a3c'; X.font = '5px "Press Start 2P", monospace'; X.textAlign = 'center'; X.textBaseline = 'middle';   // who plays each side
+  X.fillText(DEMO ? 'CPU' : '1P', 94.5, 34.5); X.fillText('CPU', 225.5, 34.5); X.textAlign = 'left'; X.textBaseline = 'top';   // 'top': as text() leaves it, the names below rely on it
   X.fillStyle = '#e9edf5'; X.font = '6px "Press Start 2P", monospace'; X.fillText(NAME.joe, 14, 31); X.textAlign = 'right'; X.fillText(NAME.dan, W - 14, 31); X.textAlign = 'left';
   const pips = (n, x) => { for (let i = 0; i < n; i++) { X.fillStyle = '#e8ec5a'; X.fillRect(x + i * 6, 32, 4, 4); } };
   if (joe) pips(joe.wins, 113); if (dan) pips(dan.wins, 195);
@@ -589,6 +645,61 @@ function karaoke(){                                                         // l
       x += X.measureText(txt).width; });
     x += X.measureText(' ').width; }
 }
+// ── the mini-intro: two faces charge in, clash, and the PODEMOS FIGHTER logo slams down (≈6 s, any key skips) ──
+const SPLASH = 6.5;
+function logoText(t, x, y, size, top, bot, scale = 1){
+  X.save(); X.translate(x, y); X.scale(scale, scale);
+  X.font = `${size}px "Press Start 2P", monospace`; X.textAlign = 'center'; X.textBaseline = 'middle';
+  const g = X.createLinearGradient(0, -size / 2, 0, size / 2); g.addColorStop(0, top); g.addColorStop(.55, top); g.addColorStop(.56, bot); g.addColorStop(1, bot);
+  X.lineJoin = 'round'; X.lineWidth = size / 3.2; X.strokeStyle = '#120a1c'; X.strokeText(t, 1.5, 2); X.strokeText(t, 0, 0);
+  X.lineWidth = size / 9; X.strokeStyle = '#fff3c4'; X.strokeText(t, 0, 0);
+  X.fillStyle = g; X.fillText(t, 0, 0); X.restore();
+}
+function drawSplash(){
+  const t = splashT / 60, ease = u => 1 - Math.pow(1 - Math.max(0, Math.min(1, u)), 3);
+  const bg = X.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, 220); bg.addColorStop(0, '#4a1f63'); bg.addColorStop(1, '#0b0512');
+  X.fillStyle = bg; X.fillRect(0, 0, W, H);
+  const shake = t > 2.2 && t < 2.6 ? (Math.random() - .5) * 6 : 0;
+  X.save(); X.translate(shake, shake * .6);
+  for (let i = 0; i < 18; i++) {                                           // speed lines while they charge
+    const a = i / 18 * Math.PI * 2 + t * .3; X.strokeStyle = `rgba(232,236,90,${t < 1.6 ? .12 : .05})`; X.lineWidth = 3;
+    X.beginPath(); X.moveTo(W / 2 + Math.cos(a) * 40, H / 2 + Math.sin(a) * 40); X.lineTo(W / 2 + Math.cos(a) * 260, H / 2 + Math.sin(a) * 260); X.stroke(); }
+  const u = ease(t / 1.5), dim = t > 1.6 ? .55 : 1;
+  const face = (id, cx, flip) => { const f = img['f_' + id]; if (!f || !f.width) return; const h = 120, w = f.width * h / f.height;
+    X.save(); X.globalAlpha = dim; X.translate(cx, H - h / 2 - 4); if (flip) X.scale(-1, 1); X.drawImage(f, -w / 2, -h / 2, w, h); X.restore(); };
+  face('iglesias', -80 + u * 170, false); face('errejon', W + 80 - u * 170, true);   // the intro's clash: Iglesias vs Errejón
+  if (t > 1.5 && t < 1.75) { X.fillStyle = `rgba(255,255,255,${1 - (t - 1.5) / .25})`; X.fillRect(0, 0, W, H); }     // the clash
+  if (t > 1.6) logoText('PODEMOS', W / 2, -30 + ease((t - 1.6) / .45) * 106, 26, '#c58cff', '#7a2fb0');
+  if (t > 2.2) { const k = ease((t - 2.2) / .3); logoText('FIGHTER', W / 2, 112, 26, '#ffe066', '#ff5a1f', 3 - 2 * k); }
+  X.restore();
+  if (t > 3) text('COLGANDO EN LA CASTA', 142, 6, '#e8ec5a');
+  if (t > 3.6 && Math.floor(t * 2.5) % 2 === 0) text('PRESS START', 212, 8, '#e9edf5');
+}
+function drawSelect(){
+  X.fillStyle = 'rgba(0,0,0,.62)'; X.fillRect(0, TOP, W, H - TOP);
+  logoText('PODEMOS FIGHTER', W / 2, 22, 13, '#c58cff', '#7a2fb0');      // the empty HUD strip carries the logo
+  const P1 = '#3456ff', CPU = '#ff5a3c', blink = Math.floor(performance.now() / 180) % 2;
+  text(sel.side === 'joe' ? 'PLAYER 1 · HUMAN' : 'PLAYER 2 · CPU', 51, 7, sel.side === 'joe' ? '#8fa2ff' : '#ff8f7a');
+  ROSTER.forEach((r, i) => {
+    const [x, y] = slotXY(i), f = img['f_' + r.id];
+    X.fillStyle = '#1a1d28'; X.fillRect(x, y, BXW, BXH);
+    if (f && f.width) { const z = Math.min((BXW - 4) / f.width, (BXH - 2) / f.height), w = f.width * z, h = f.height * z;
+      X.save(); X.beginPath(); X.rect(x, y, BXW, BXH); X.clip();
+      if (sel.side === 'dan') { X.translate(x + BXW / 2, 0); X.scale(-1, 1); X.translate(-(x + BXW / 2), 0); }   // the rival faces left, as in the fight
+      X.drawImage(f, x + (BXW - w) / 2, y + BXH - h, w, h); X.restore(); }
+    X.strokeStyle = '#3a4058'; X.lineWidth = 1; X.strokeRect(x + .5, y + .5, BXW - 1, BXH - 1);
+    if (sel.side === 'dan' && i === PICK.joe) { X.strokeStyle = P1; X.lineWidth = 2; X.strokeRect(x + 1, y + 1, BXW - 2, BXH - 2);
+      X.fillStyle = P1; X.fillRect(x, y, 13, 8); X.fillStyle = '#fff'; X.font = '5px "Press Start 2P", monospace'; X.textAlign = 'left'; X.textBaseline = 'top'; X.fillText('1P', x + 2, y + 2); }
+    if (i === sel.cur && blink) { X.strokeStyle = sel.side === 'joe' ? P1 : CPU; X.lineWidth = 2.5; X.strokeRect(x - 1, y - 1, BXW + 2, BXH + 2); }
+    X.fillStyle = i === sel.cur ? '#e8ec5a' : '#c9cfdc'; X.font = '5px "Press Start 2P", monospace'; X.textAlign = 'center'; X.textBaseline = 'top';
+    X.fillText(r.name, x + BXW / 2, y + BXH + 4);
+  });
+  const a = sel.side === 'joe' ? ROSTER[sel.cur].name : ROSTER[PICK.joe].name, b = sel.side === 'dan' ? ROSTER[sel.cur].name : '???';
+  text(`${a} VS ${b}`, 196, 8, '#e8ec5a');
+  text('1P: YOU      2P: CPU', 182, 5, '#8a93a8');
+  text(sel.side === 'joe' ? 'PUNCH / ENTER TO PICK' : 'PUNCH PICKS · KICK GOES BACK', 212, 5, '#8a93a8');
+  X.textAlign = 'left'; X.textBaseline = 'alphabetic';
+}
 let cam = (WORLD - W) / 2;
 function draw(){
   if (location.hash === '#sheet') return sheet();
@@ -605,11 +716,13 @@ function draw(){
   }
   X.setTransform(S, 0, 0, S, 0, 0); X.imageSmoothingQuality = 'high';
   X.clearRect(0, 0, W, H);
+  if (state === 'splash') return drawSplash();
   const mid = joe && dan ? (joe.x + dan.x) / 2 : WORLD / 2, target = Math.max(0, Math.min(WORLD - W, mid - W / 2));
   cam += (target - cam) * .12;                                              // smooth follow
   const sh = (H - TOP) * WORLD / W;                                         // stage scaled to the arena, anchored at the ground
   if (img.stage && img.stage.width) { X.save(); X.beginPath(); X.rect(0, TOP, W, H - TOP); X.clip();
     X.drawImage(img.stage, -cam, H - sh, WORLD, sh); X.restore(); }
+  if (state === 'select') return drawSelect();                           // no health bars on the select screen
   hud();
   if (state === 'title') {
     X.fillStyle = 'rgba(0,0,0,.45)'; X.fillRect(0, TOP, W, H - TOP);
@@ -624,6 +737,6 @@ function draw(){
 }
 function loop(t){ const dt = t - last; if (dt >= 1000 / 61) { last = t; step(); draw(); } requestAnimationFrame(loop); }
 // dev: index.html#song plays and records the whole chip song
-Promise.all(need).then(() => { if (location.hash === '#song') { audioTap(); musicStart(); recStart(); setTimeout(recStop, 53000); } if (location.hash === '#fight' || DEMO) startOrNext(); draw(); requestAnimationFrame(loop); });
+Promise.all(need).then(() => { cast('joe', PICK.joe); cast('dan', PICK.dan); if (location.hash === '#song') { audioTap(); musicStart(); recStart(); setTimeout(recStop, 53000); } if (location.hash === '#fight' || DEMO) { state = 'title'; startOrNext(); } draw(); requestAnimationFrame(loop); });
 })();
 </script>

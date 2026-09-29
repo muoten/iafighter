@@ -12,10 +12,16 @@ ESR = ROOT / 'work/esr'
 SRC = {'congui': ROOT / 'work/face_congui_prof.png',             # profile (video frame 24): faces the opponent
        'afra': ROOT / 'work/face_afra_prof.png',
        'iglesias': ROOT / 'work/face_iglesias_prof.png',             # Wikimedia Commons, Olaf Kosinsky, CC BY-SA 3.0 de
-       'echenique': ROOT / 'work/face_echenique_prof.png'}           # Wikimedia Commons, Pablo Ibáñez, CC BY-SA 2.0
-INK = {'iglesias': dict(clahe=1.5, thr=6, dark=0.5), 'echenique': dict(clahe=1.3, thr=4, dark=0.35), 'congui': dict(clahe=1.8, thr=6, dark=0.45), 'afra': dict(clahe=2.5, thr=4, dark=0.25)}   # softer ink on Congui: creases read as age
+       'echenique': ROOT / 'work/face_echenique_prof.png',
+       'etxebarria': ROOT / 'work/face_etxebarria_prof.png',         # press still: El Español (Espejo Público, 2024)
+       'montero': ROOT / 'work/face_montero_prof.png',
+       'soto': ROOT / 'work/face_soto_prof.png',                     # press still: The Objective, Carmen Suárez (2024)
+       'sanchez': ROOT / 'work/face_sanchez_prof.png',
+       'errejon0': ROOT / 'work/face_errejon0_prof.png',             # Wikimedia Commons, IMG 1242 (Flickr 42716868021), CC BY 2.0
+       'errejon8': ROOT / 'work/face_errejon8_prof.png'}             # Wikimedia Commons, 'Íñigo Errejón 2015b', CC BY 3.0 (mirrored)               # Wikimedia Commons, Pool Moncloa / Borja Puig de la Bellacasa (2019)               # Wikimedia Commons, Marta Jara (eldiario.es), CC BY-SA 3.0 es           # Wikimedia Commons, Pablo Ibáñez, CC BY-SA 2.0
+INK = {'errejon0': dict(clahe=1.5, thr=6, dark=0.5), 'errejon8': dict(clahe=1.5, thr=6, dark=0.5), 'soto': dict(clahe=1.5, thr=6, dark=0.5), 'sanchez': dict(clahe=1.5, thr=6, dark=0.5), 'etxebarria': dict(clahe=1.5, thr=6, dark=0.5), 'montero': dict(clahe=1.5, thr=6, dark=0.5), 'iglesias': dict(clahe=1.5, thr=6, dark=0.5), 'echenique': dict(clahe=1.3, thr=4, dark=0.35), 'congui': dict(clahe=1.8, thr=6, dark=0.45), 'afra': dict(clahe=2.5, thr=4, dark=0.25)}   # softer ink on Congui: creases read as age
 NO_OVAL = {'echenique'}                                             # a wide profile: the oval would cut his chin and beard
-SKIN = {'iglesias': (220, 166, 128), 'echenique': None, 'congui': (220, 166, 128), 'afra': (232, 184, 150)}          # the body's mid skin tone (make_sprites ramps)
+SKIN = {'errejon0': None, 'errejon8': None, 'soto': None, 'sanchez': None, 'etxebarria': None, 'montero': None, 'iglesias': (220, 166, 128), 'echenique': None, 'congui': (220, 166, 128), 'afra': (232, 184, 150)}          # the body's mid skin tone (make_sprites ramps)
 HEAD_W, HEAD_H = 17, 20                                    # the head box in sprite pixels (as drawn in the game)
 
 def cartoon(src, skin=None, clahe=2.5, thr=4, dark=0.25):
@@ -78,7 +84,7 @@ def lite(who, colors=24):
     rgb[edge & (yy < h * .74)] *= .45
     out = np.dstack([rgb.clip(0, 255).astype(np.uint8), np.where(a, 255, 0).astype(np.uint8)])
     return upscale(out, f'{who}_lite')
-LITE = {'iglesias', 'echenique'}
+LITE = {'errejon0', 'errejon8', 'iglesias', 'echenique', 'etxebarria', 'montero', 'soto', 'sanchez'}
 
 if __name__ == '__main__':
     scales = [float(sys.argv[1])] if len(sys.argv) > 1 else [1.5]

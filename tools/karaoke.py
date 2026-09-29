@@ -5,7 +5,8 @@ import json, pathlib
 import numpy as np
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 S = json.load(open(ROOT / 'work/baute/song.json')); W = S['words']
-LINES = [  # (index of the original line's first word, its word count, new line)
+SETS = {  # (index of the original line's first word, its word count, new line)
+  'ia': [
     (1, 7,  'Sabes que estoy colgando en la IA-A-A'),
     (8, 6,  'así que no me dejes perder'),
     (14, 7, 'Sabes que estoy colgando en la IA-A-A'),
@@ -17,7 +18,23 @@ LINES = [  # (index of the original line's first word, its word count, new line)
     (53, 8, 'que mi corazón está colgando en la IA'),
     (61, 2, '¡Cuidado, cuidado!'),
     (63, 8, 'que mi corazón está colgando en la IA-A-A'),
-]
+  ],
+  'podemos': [                                                      # the Podemos parody: la casta, the heavens, Galapagar
+    (1, 7,  'Sabes que estoy colgando en la CAS-TA-A-A'),
+    (8, 6,  'salgo del piso de Vallecas'),
+    (14, 7, 'Sabes que estoy colgando en la CAS-TA-A-A'),
+    (21, 8, 'Te prometí asaltar los cielos, compañero'),
+    (29, 5, 'me corté la coleta y me fui a la tele'),
+    (34, 7, 'Errejón se marchó, Yolanda nos restó'),
+    (41, 5, 'y en Vistalegre, patada giratoria'),
+    (46, 7, 'y en el chalet de Galapagar, sí se puede'),
+    (53, 8, 'que mi corazón está colgando en la casta'),
+    (61, 2, '¡Sí se puede, sí se puede!'),
+    (63, 8, 'que mi corazón está colgando en la CAS-TA-A-A'),
+  ],
+}
+import sys
+LINES = SETS[sys.argv[1] if len(sys.argv) > 1 else 'podemos']
 VOW = set('aeiouáéíóúü'); STRONG = set('aeoáéíóú')
 INSEP = {'bl', 'br', 'cl', 'cr', 'dr', 'fl', 'fr', 'gl', 'gr', 'pl', 'pr', 'tr', 'ch', 'll', 'rr'}
 def syllables(word):
@@ -61,4 +78,7 @@ for li, (i0, n, text) in enumerate(LINES):
     for (wi, p), t in zip(syl, times): ws[wi][1].append([p, rel(t)])
     out.append({'s': rel(times[0]), 'e': rel(min(s1, spans[li][1] + .4)), 'w': ws})
 json.dump(out, open(ROOT / 'game/karaoke.json', 'w'), ensure_ascii=False, indent=1)
+g = ROOT / 'game/index.html'; h = g.read_text()                        # and into the game itself (const KARAOKE = [...];)
+i0 = h.index('const KARAOKE = ') + len('const KARAOKE = '); i1 = h.index(';', h.index(']}]', i0))
+g.write_text(h[:i0] + json.dumps(out, ensure_ascii=False, separators=(',', ':')) + h[i1:])
 for l in out: print(' '.join('-'.join(p for p, _ in w[1]) for w in l['w']), '|', len([1 for w in l['w'] for _ in w[1]]), 'syl')
