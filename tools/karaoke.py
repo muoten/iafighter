@@ -78,7 +78,7 @@ for li, (i0, n, text) in enumerate(LINES):
     for (wi, p), t in zip(syl, times): ws[wi][1].append([p, rel(t)])
     out.append({'s': rel(times[0]), 'e': rel(min(s1, spans[li][1] + .4)), 'w': ws})
 json.dump(out, open(ROOT / 'game/karaoke.json', 'w'), ensure_ascii=False, indent=1)
-g = ROOT / 'game/index.html'; h = g.read_text()                        # and into the game itself (const KARAOKE = [...];)
+g = ROOT / 'index.html'; h = g.read_text()                        # and into the game itself (const KARAOKE = [...];)
 i0 = h.index('const KARAOKE = ') + len('const KARAOKE = '); i1 = h.index(';', h.index(']}]', i0))
 g.write_text(h[:i0] + json.dumps(out, ensure_ascii=False, separators=(',', ':')) + h[i1:])
 for l in out: print(' '.join('-'.join(p for p, _ in w[1]) for w in l['w']), '|', len([1 for w in l['w'] for _ in w[1]]), 'syl')

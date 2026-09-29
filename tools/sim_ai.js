@@ -1,7 +1,7 @@
 // Headless win-rate check: IA_FRA (danAI) vs a scripted player bot, using the game's own logic.
-// usage: node tools/sim_ai.js [game/index.html] [rounds] [demo]   (demo = the page's own Congui bot)
+// usage: node tools/sim_ai.js [index.html] [rounds] [demo]   (demo = the page's own Congui bot)
 const fs = require('fs');
-const html = fs.readFileSync(process.argv[2] || 'game/index.html', 'utf8');
+const html = fs.readFileSync(process.argv[2] || 'index.html', 'utf8');
 const js = html.slice(html.indexOf('// ── fighters ──'), html.indexOf('// ── loop ──'));
 const window = {}, document = { getElementById: () => ({}) }, C = {}, location = { hash:'' }, NAME = { joe:'CONGUI', dan:'IA_FRA' }, W = 320, GROUND = 226, soundOn = false, music = { pause(){}, play(){ return Promise.resolve(); } };
 let seed = 7; Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
