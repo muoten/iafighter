@@ -27,6 +27,8 @@
   #rec { color: #ff4a3d; font-size: 9px; text-align: center; }
   #help { overflow-wrap: anywhere; color: var(--dim); font-size: 9px; text-align: center; line-height: 1.8; }
   @media (min-width: 900px) and (hover: hover) { #pad { display: none; } }
+  @media (orientation: portrait) and (max-width: 700px) { body { padding-inline: 6px; } canvas { border-width: 1px; } }
+  @media (hover: none) { #help { display: none; } }        /* keyboard help means nothing on a touch screen */
   @media (orientation: landscape) and (max-height: 520px) {
     body { flex-direction: row; } #wrap { flex-direction: row; max-width: none; height: 100%; }
     canvas { width: auto; height: calc(100% - 16px); }
@@ -119,7 +121,7 @@ document.querySelectorAll('#pad button').forEach(b => {
   b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off);
 });
 C.addEventListener('pointerdown', e => {                                  // on the select screen a tap picks the portrait under it
-  if (state === 'select') { const b = C.getBoundingClientRect(), i = slotAt((e.clientX - b.left) / b.width * W, (e.clientY - b.top) / b.height * H);
+  if (state === 'select') { const b = C.getBoundingClientRect(), i = slotAt((e.clientX - b.left) / b.width * W, (e.clientY - b.top) / b.height * H / U);
     if (i >= 0) { sel.cur = i; choose(); } return; }
   startOrNext(); });
 function toggleSound(){ soundOn = !soundOn; if (!soundOn) musicPause(); else if (state === 'fight') track.play().catch(()=>{}); }
@@ -288,7 +290,7 @@ function step(){
   }
   edge.up = edge.punch = edge.kick = edge.spin = edge.down = edge.left = edge.right = false;
   if (state !== 'title' && state !== 'select' && state !== 'splash') { physics(joe); physics(dan);
-    const gap = Math.abs(joe.x - dan.x) - (W - 40);                        // both must stay on screen: no running away from the camera
+    const gap = Math.abs(joe.x - dan.x) - (VW - 40);                        // both must stay on screen: no running away from the camera
     if (gap > 0) { const back = gap / 2 * (joe.x < dan.x ? 1 : -1); joe.x += back; dan.x -= back; }
     if (state === 'fight' && Math.abs(joe.x - dan.x) < 26) { const push = (26 - Math.abs(joe.x - dan.x)) / 2 * (joe.x < dan.x ? 1 : -1); joe.x -= push; dan.x += push; } }
   if (bannerT > 0 && state === 'fight') bannerT--;
@@ -686,7 +688,6 @@ function drawSplash(){
   if (t > 3.6 && Math.floor(t * 2.5) % 2 === 0) text('PRESS START', 212, 8, '#e9edf5');
 }
 function drawSelect(){
-  X.fillStyle = 'rgba(0,0,0,.62)'; X.fillRect(0, TOP, W, H - TOP);
   logoText('PODEMOS FIGHTER', W / 2, 22, 13, '#c58cff', '#7a2fb0');      // the empty HUD strip carries the logo
   const P1 = '#3456ff', CPU = '#ff5a3c', blink = Math.floor(performance.now() / 180) % 2;
   text('...COLGANDO EN SUS MANOS', 54, 6, '#e8ec5a');                      // the phrase the intro began
@@ -711,7 +712,16 @@ function drawSelect(){
   text(sel.side === 'joe' ? 'PUNCH / ENTER TO PICK' : 'PUNCH PICKS · KICK GOES BACK', 212, 5, '#8a93a8');
   X.textAlign = 'left'; X.textBaseline = 'alphabetic';
 }
-let cam = (WORLD - W) / 2;
+// ── PORTRAIT PHONES: a narrower window on the arena (VW of the 320 units), so the canvas is taller and the fighters
+//    bigger; the HUD and every overlay are drawn in the 320-wide layout scaled by U to fit ──
+let VW = W, U = 1;
+function setView(){
+  VW = matchMedia('(orientation: portrait) and (max-width: 700px)').matches ? 224 : W; U = VW / W;
+  if (C.width !== VW * S) { C.width = VW * S; C.height = H * S; C.style.aspectRatio = `${VW} / ${H}`; }
+}
+setView(); addEventListener('resize', setView);
+const uiT = (mid) => X.setTransform(S * U, 0, 0, S * U, 0, mid ? (H - H * U) / 2 * S : 0);   // the 320-wide layout
+let cam = (WORLD - VW) / 2;
 function draw(){
   if (location.hash === '#sheet') return sheet();
   if (location.hash === '#chairsheet') {                                   // dev aid: every wheelchair pose
@@ -726,22 +736,23 @@ function draw(){
     return;
   }
   X.setTransform(S, 0, 0, S, 0, 0); X.imageSmoothingQuality = 'high';
-  X.clearRect(0, 0, W, H);
-  if (state === 'splash') return drawSplash();
-  const mid = joe && dan ? (joe.x + dan.x) / 2 : WORLD / 2, target = Math.max(0, Math.min(WORLD - W, mid - W / 2));
+  X.clearRect(0, 0, VW, H);
+  if (state === 'splash') { X.fillStyle = '#0b0512'; X.fillRect(0, 0, VW, H); uiT(true); return drawSplash(); }
+  const mid = joe && dan ? (joe.x + dan.x) / 2 : WORLD / 2, target = Math.max(0, Math.min(WORLD - VW, mid - VW / 2));
   cam += (target - cam) * .12;                                              // smooth follow
   const sh = (H - TOP) * WORLD / W;                                         // stage scaled to the arena, anchored at the ground
-  if (img.stage && img.stage.width) { X.save(); X.beginPath(); X.rect(0, TOP, W, H - TOP); X.clip();
+  if (img.stage && img.stage.width) { X.save(); X.beginPath(); X.rect(0, TOP * U, VW, H - TOP * U); X.clip();
     X.drawImage(img.stage, -cam, H - sh, WORLD, sh); X.restore(); }
-  if (state === 'select') return drawSelect();                           // no health bars on the select screen
-  hud();
+  if (state === 'select') { X.fillStyle = 'rgba(0,0,0,.62)'; X.fillRect(0, TOP * U, VW, H); uiT(false); return drawSelect(); }   // no health bars on the select screen
+  uiT(false); hud(); X.setTransform(S, 0, 0, S, 0, 0);
   if (state === 'title') {
     X.fillStyle = 'rgba(0,0,0,.45)'; X.fillRect(0, TOP, W, H - TOP);
     drawFighter({ who:'joe', x:70, y:GROUND, dir:1, state:'idle', flash:0 }); drawFighter({ who:'dan', x:250, y:GROUND, dir:-1, state:'idle', flash:0 });
-    text(`${NAME.joe} VS ${NAME.dan}`, 100, 14, '#e8ec5a'); text('TAP OR PRESS ENTER', 140, 7, '#e9edf5'); karaoke(); return;
+    uiT(false); text(`${NAME.joe} VS ${NAME.dan}`, 100, 14, '#e8ec5a'); text('TAP OR PRESS ENTER', 140, 7, '#e9edf5'); karaoke(); return;
   }
   const order = [joe, dan].sort((a, b) => (a.state === 'attack') - (b.state === 'attack'));
   X.save(); X.translate(-Math.round(cam * 4) / 4, 0); order.forEach(drawFighter); sparks.forEach(spark); X.restore();
+  uiT(false);
   if (bannerT > 0 || state === 'over') text(banner, 110, state === 'over' ? 9 : 14, state === 'over' ? '#e8ec5a' : '#fff');
   if (state === 'over') text('TAP TO PLAY AGAIN', 140, 7, '#e9edf5');
   karaoke();
