@@ -6,7 +6,7 @@ import json, pathlib, subprocess, sys
 import numpy as np, soundfile as sf
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 S = json.load(open(ROOT / 'work/baute/song.json')); T0, T1 = S['t0'], S['t1']; SR = 44100
-# ── fit the game's own music (game/original_audio.mp3): its key (E minor -> G major, +1) and its pulse (~129 BPM) ──
+# ── fit the game's own music (work/original_audio.mp3): its key (E minor -> G major, +1) and its pulse (~129 BPM) ──
 KEY = 1; SPEED = 129.2 / 117.45                                   # record time t plays at T0 + (t - T0) / SPEED
 json.dump({'key': KEY, 'speed': SPEED}, open(ROOT / 'work/baute/arrange.json', 'w'))
 WAVE = np.array(json.load(open(ROOT / 'work/baute/game_wave.json'))['wavetable'])   # one cycle of the game's lead
@@ -50,7 +50,7 @@ mix = mix[:int((T1 - T0 + 1.5) / SPEED * SR)]
 mix = np.round(mix / np.abs(mix).max() * .9 * 127) / 127                # 8-bit amplitude steps
 def eq_match(x):                                                    # same "speaker" as the CRT recording: match its long-term spectrum
     import librosa
-    ref, _ = librosa.load(str(ROOT / 'game/original_audio.mp3'), sr=SR)
+    ref, _ = librosa.load(str(ROOT / 'work/original_audio.mp3'), sr=SR)
     A = np.abs(librosa.stft(ref, n_fft=4096)).mean(1); B = np.abs(librosa.stft(x.astype(np.float32), n_fft=4096)).mean(1) + 1e-9
     g = A / B; f = np.fft.rfftfreq(4096, 1 / SR); sm = np.empty_like(g)
     for i, fi in enumerate(f): k = (f >= fi / 2 ** (1 / 6)) & (f <= fi * 2 ** (1 / 6)); sm[i] = np.exp(np.log(g[k] + 1e-9).mean())   # 1/3-octave smoothing
