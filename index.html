@@ -3,14 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-CYX05H7PK5"></script>
+<!-- Google tag (gtag.js), behind consent: nothing is loaded and no cookie is set until the visitor
+     accepts (Consent Mode v2 defaults to denied; the gtag script itself is only fetched after "Aceptar") -->
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
+  gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
   gtag('js', new Date());
-
   gtag('config', 'G-CYX05H7PK5');
+  window.loadAnalytics = function () {
+    if (window.__gaLoaded) return; window.__gaLoaded = true;
+    gtag('consent', 'update', { analytics_storage: 'granted' });
+    const s = document.createElement('script'); s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=G-CYX05H7PK5';
+    document.head.appendChild(s);
+  };
+  try { if (localStorage.getItem('pf_consent') === 'granted') window.loadAnalytics(); } catch (e) {}
 </script>
 <title>Podemos Fighter</title>
 <meta name="description" content="Parodia de lucha 16-bit: Errejón, Echenique, Iglesias y Montero, con chiptune y karaoke. Las luchas sociales... colgando en sus manos.">
@@ -45,10 +52,29 @@
   button:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
   button.on { background: #2a3350; }
   .acts button { border-radius: 50%; }
-  #pbtn { border-color: var(--joe); } #kbtn { border-color: var(--dan); } #sbtn { border-color: #e8ec5a; font-size: 9px; }
+  #pbtn { border-color: var(--joe); } #kbtn { border-color: var(--dan); } #sbtn { border-color: #8a93a8; font-size: 9px; }
   #up { grid-column: 2; } #left { grid-column: 1; grid-row: 2; } #down { grid-column: 2; grid-row: 2; } #right { grid-column: 3; grid-row: 2; }
   #rec { color: #ff4a3d; font-size: 9px; text-align: center; }
+  #cookies { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 10; width: min(560px, calc(100% - 16px));
+             background: var(--panel); border: 2px solid var(--edge); border-radius: 10px; padding: 12px 14px;
+             font: 9px/1.8 "Press Start 2P", ui-monospace, monospace; color: var(--fg); box-shadow: 0 6px 24px #000a; }
+  #cookies p { margin: 0 0 10px; }
+  #cookies .row { display: flex; gap: 10px; justify-content: flex-end; }
+  #cookies button { font-size: 9px; padding: 10px 14px; border-radius: 8px; touch-action: manipulation; }
+  #cookies .yes { border-color: #e8ec5a; }
+  #credits button { font: inherit; color: var(--dim); background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
   #credits { max-width: 720px; color: var(--dim); font: 8px/1.9 ui-monospace, monospace; text-align: center; opacity: .8; }
+  #hint { color: var(--dim); font-size: 8px; }
+  @media (hover: none) { #hint { display: none; } }
+  #pause { position: fixed; inset: 0; z-index: 9; background: #000b; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  #pause[hidden] { display: none; }
+  #pause .panel { width: min(560px, 100%); max-height: 100%; overflow-y: auto; background: var(--panel); border: 2px solid var(--edge);
+                  border-radius: 10px; padding: 16px; text-align: center; }
+  #pause h2 { margin: 0 0 12px; font-size: 16px; color: #e8ec5a; letter-spacing: 2px; }
+  #pause p { font-size: 9px; line-height: 2; margin: 0 0 12px; } #pause b { color: #e8ec5a; font-weight: normal; }
+  #pause .keys { display: none; } @media (hover: hover) { #pause .keys { display: block; } #pause .touch { display: none; } }
+  #pause .ver { font-size: 8px; color: var(--dim); margin: -6px 0 12px; }
+  #pause .go { font-size: 11px; padding: 12px 22px; border-color: #e8ec5a; margin-bottom: 14px; }
   #help { overflow-wrap: anywhere; color: var(--dim); font-size: 9px; text-align: center; line-height: 1.8; }
   @media (min-width: 900px) and (hover: hover) { #pad { display: none; } }
   @media (orientation: portrait) and (max-width: 700px) { body { padding-inline: 6px; } canvas { border-width: 1px; } }
@@ -61,6 +87,40 @@
 </style>
 </head>
 <body>
+<div id="pause" role="dialog" aria-label="Pausa" hidden>
+  <div class="panel">
+    <h2>PAUSE</h2>
+    <p class="touch">◀ ▶ move · ▲ jump · ▼ crouch<br>PUNCH · KICK · <b>back + KICK</b> = spinning back kick</p>
+    <p class="keys">A/D move · W jump · S crouch · J punch · K kick<br><b>back + K</b> = spinning back kick · P pause · M sound</p>
+    <button class="go" type="button">CONTINUAR</button>
+    <p class="ver">podemosfighter v0.1.0</p>
+    <footer id="credits">Parodia sin afiliación política. Fotos (Wikimedia Commons), adaptadas al estilo sprite:
+    Iglesias — Olaf Kosinsky, CC BY-SA 3.0 DE · Echenique — Pablo Ibáñez, CC BY-SA 2.0 ·
+    Montero — Marta Jara (eldiario.es), CC BY-SA 3.0 ES · Errejón — Podemos Andalucía, CC BY 3.0.
+    Cuerpos: sprites de Ken de Super Street Fighter II (© Capcom), recoloreados. · <button id="cookie-open" type="button">Cookies</button></footer>
+  </div>
+</div>
+<div id="cookies" role="dialog" aria-label="Cookies" hidden>
+  <p>Usamos Google Analytics para contar visitas, solo si aceptas. Sin publicidad.</p>
+  <div class="row"><button class="no" type="button">Rechazar</button><button class="yes" type="button">Aceptar</button></div>
+</div>
+<script>
+  (() => {                                      // the choice is remembered; "Cookies" in the footer reopens it
+    const box = document.getElementById('cookies');
+    let saved = null; try { saved = localStorage.getItem('pf_consent'); } catch (e) {}
+    const choose = v => { try { localStorage.setItem('pf_consent', v); } catch (e) {}
+      if (v === 'granted') window.loadAnalytics();
+      else if (window.__gaLoaded) gtag('consent', 'update', { analytics_storage: 'denied' });
+      box.hidden = true; };
+    box.querySelector('.yes').addEventListener('click', () => choose('granted'));
+    box.querySelector('.no').addEventListener('click', () => choose('denied'));
+    box.addEventListener('keydown', e => e.stopPropagation());       // Enter on a button must not also start the game
+    box.addEventListener('pointerdown', e => e.stopPropagation());
+    if (!saved) box.hidden = false;
+    document.addEventListener('DOMContentLoaded', () =>
+      document.getElementById('cookie-open').addEventListener('click', () => { box.hidden = false; }));
+  })();
+</script>
 <div id="wrap">
   <canvas id="c" width="1280" height="944" aria-label="Joe vs Dan fighting game"></canvas>
   <div id="pad" aria-label="Touch controls">
@@ -73,15 +133,11 @@
     <div class="cluster acts">
       <button id="pbtn" data-k="punch">PUNCH</button>
       <button id="kbtn" data-k="kick">KICK</button>
-      <button id="sbtn" data-k="spin">SPIN</button>
+      <button id="sbtn" data-k="pause" aria-label="Pause and info">PAUSE</button>
     </div>
   </div>
   <div id="rec" hidden>● REC — this round downloads as a video when it ends</div>
-  <div id="help">Keys: A/D move · W jump · S crouch · J punch · K kick · L spin kick · Enter start · M sound</div>
-  <footer id="credits">Parodia sin afiliación política. Fotos (Wikimedia Commons), adaptadas al estilo sprite:
-    Iglesias — Olaf Kosinsky, CC BY-SA 3.0 DE · Echenique — Pablo Ibáñez, CC BY-SA 2.0 ·
-    Montero — Marta Jara (eldiario.es), CC BY-SA 3.0 ES · Errejón — Podemos Andalucía, CC BY 3.0.
-    Cuerpos: sprites de Ken de Super Street Fighter II (© Capcom), recoloreados.</footer>
+  <div id="hint">P · pause &amp; info</div>
 </div>
 <script>
 (() => {
@@ -138,13 +194,16 @@ let soundOn = true;
 // ── input: keyboard + touch buttons share one key map ──
 const K = { left:false, right:false, up:false, down:false, punch:false, kick:false, spin:false };
 const edge = { punch:false, kick:false, spin:false, up:false, down:false, left:false, right:false };
-const keymap = { KeyA:'left', ArrowLeft:'left', KeyD:'right', ArrowRight:'right', KeyW:'up', ArrowUp:'up', KeyS:'down', ArrowDown:'down', KeyJ:'punch', KeyK:'kick', KeyL:'spin' };
+const keymap = { KeyA:'left', ArrowLeft:'left', KeyD:'right', ArrowRight:'right', KeyW:'up', ArrowUp:'up', KeyS:'down', ArrowDown:'down', KeyJ:'punch', KeyK:'kick' };
 function press(k, v){ if (v && !K[k] && k in edge) edge[k] = true; K[k] = v; }
-addEventListener('keydown', e => { if (keymap[e.code]) { press(keymap[e.code], true); e.preventDefault(); }
+addEventListener('keydown', e => { if (e.code === 'KeyP' || e.code === 'Escape' || (paused && (e.code === 'Enter' || e.code === 'Space'))) { togglePause(); e.preventDefault(); return; }
+  if (paused) return;
+  if (keymap[e.code]) { press(keymap[e.code], true); e.preventDefault(); }
   if (e.code === 'Enter' || e.code === 'Space') startOrNext(); if (e.code === 'KeyM') toggleSound(); });
 addEventListener('keyup', e => { if (keymap[e.code]) press(keymap[e.code], false); });
 document.querySelectorAll('#pad button').forEach(b => {
   const k = b.dataset.k;
+  if (k === 'pause') { b.addEventListener('pointerdown', e => { e.preventDefault(); togglePause(); }); return; }
   const on = e => { e.preventDefault(); b.classList.add('on'); press(k, true); if (state === 'title' || state === 'over' || state === 'splash') startOrNext(); };
   const off = e => { e.preventDefault(); b.classList.remove('on'); press(k, false); };
   b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off);
@@ -153,6 +212,17 @@ C.addEventListener('pointerdown', e => {                                  // on 
   if (state === 'select') { const b = C.getBoundingClientRect(), i = slotAt((e.clientX - b.left) / b.width * W, (e.clientY - b.top) / b.height * H / U);
     if (i >= 0) { sel.cur = i; choose(); } return; }
   startOrNext(); });
+// ── PAUSE: freezes the game and the song, and is where the controls and credits live ──
+let paused = false, pausedMusic = false;
+const PZ = document.getElementById('pause');
+function togglePause(){
+  paused = !paused; PZ.hidden = !paused;
+  for (const k in K) K[k] = false; for (const k in edge) edge[k] = false;     // no key stays held across a pause
+  if (paused) { pausedMusic = !chip.paused; chip.pause(); }
+  else if (pausedMusic && soundOn) chip.play().catch(()=>{});
+}
+PZ.querySelector('.go').addEventListener('click', togglePause);
+PZ.addEventListener('pointerdown', e => { if (e.target === PZ) togglePause(); });   // a tap outside the panel resumes
 function toggleSound(){ soundOn = !soundOn; if (!soundOn) musicPause(); else if (state === 'fight') track.play().catch(()=>{}); }
 
 // ── fighters ──
@@ -308,7 +378,8 @@ function step(){
   else if (state === 'select') selectStep();
   else if (state === 'intro') { if (--bannerT <= 0) { banner = 'FIGHT'; bannerT = 40; state = 'fight'; } }
   else if (state === 'fight') {
-    const pin = DEMO ? congBot() : { left:K.left, right:K.right, down:K.down, upE:edge.up, punchE:edge.punch, kickE:edge.kick, spinE:edge.spin };
+    const back = joe.dir > 0 ? K.left : K.right, spinOK = !(joe.cool > 0);       // KICK while holding BACK = the spinning back kick
+    const pin = DEMO ? congBot() : { left:K.left, right:K.right, down:K.down, upE:edge.up, punchE:edge.punch, kickE:edge.kick && !(back && spinOK), spinE:edge.kick && back && spinOK };
     control(joe, dan, pin); control(dan, joe, danAI());
     if (++secT >= 60) { secT = 0; timer--; if (timer <= 0) { timer = 0; endRound(joe.hp === dan.hp ? null : joe.hp > dan.hp ? joe : dan); } }
   } else if (state === 'ko') {
@@ -786,7 +857,7 @@ function draw(){
   if (state === 'over') text('TAP TO PLAY AGAIN', 140, 7, '#e9edf5');
   karaoke();
 }
-function loop(t){ const dt = t - last; if (dt >= 1000 / 61) { last = t; step(); draw(); } requestAnimationFrame(loop); }
+function loop(t){ const dt = t - last; if (dt >= 1000 / 61) { last = t; if (!paused) { step(); draw(); } } requestAnimationFrame(loop); }
 // dev: index.html#song plays and records the whole chip song
 Promise.all(need).then(() => { cast('joe', PICK.joe); cast('dan', PICK.dan); if (location.hash === '#song') { audioTap(); musicStart(); recStart(); setTimeout(recStop, 53000); } if (location.hash === '#fight' || DEMO) { state = 'title'; startOrNext(); } draw(); requestAnimationFrame(loop); });
 })();
