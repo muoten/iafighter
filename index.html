@@ -87,11 +87,11 @@
 </style>
 </head>
 <body>
-<div id="pause" role="dialog" aria-label="Pausa" hidden>
+<div id="pause" role="dialog" aria-label="Info" hidden>
   <div class="panel">
-    <h2>PAUSE</h2>
+    <h2>INFO</h2>
     <p class="touch">◀ ▶ move · ▲ jump · ▼ crouch<br>PUNCH · KICK · <b>back + KICK</b> = spinning back kick</p>
-    <p class="keys">A/D move · W jump · S crouch · J punch · K kick<br><b>back + K</b> = spinning back kick · P pause · M sound</p>
+    <p class="keys">A/D move · W jump · S crouch · J punch · K kick<br><b>back + K</b> = spinning back kick · I info · M sound</p>
     <button class="go" type="button">CONTINUAR</button>
     <p class="ver">podemosfighter v0.1.1</p>
     <footer id="credits">Parodia sin afiliación política. Fotos (Wikimedia Commons), adaptadas al estilo sprite:
@@ -133,11 +133,11 @@
     <div class="cluster acts">
       <button id="pbtn" data-k="punch">PUNCH</button>
       <button id="kbtn" data-k="kick">KICK</button>
-      <button id="sbtn" data-k="pause" aria-label="Pause and info">PAUSE</button>
+      <button id="sbtn" data-k="pause" aria-label="Info (pauses the game)">INFO</button>
     </div>
   </div>
   <div id="rec" hidden>● REC — this round downloads as a video when it ends</div>
-  <div id="hint">P · pause &amp; info</div>
+  <div id="hint">I · info</div>
 </div>
 <script>
 (() => {
@@ -196,7 +196,7 @@ const K = { left:false, right:false, up:false, down:false, punch:false, kick:fal
 const edge = { punch:false, kick:false, spin:false, up:false, down:false, left:false, right:false };
 const keymap = { KeyA:'left', ArrowLeft:'left', KeyD:'right', ArrowRight:'right', KeyW:'up', ArrowUp:'up', KeyS:'down', ArrowDown:'down', KeyJ:'punch', KeyK:'kick' };
 function press(k, v){ if (v && !K[k] && k in edge) edge[k] = true; K[k] = v; }
-addEventListener('keydown', e => { if (e.code === 'KeyP' || e.code === 'Escape' || (paused && (e.code === 'Enter' || e.code === 'Space'))) { togglePause(); e.preventDefault(); return; }
+addEventListener('keydown', e => { if (e.code === 'KeyI' || e.code === 'KeyP' || e.code === 'Escape' || (paused && (e.code === 'Enter' || e.code === 'Space'))) { togglePause(); e.preventDefault(); return; }
   if (paused) return;
   if (keymap[e.code]) { press(keymap[e.code], true); e.preventDefault(); }
   if (e.code === 'Enter' || e.code === 'Space') startOrNext(); if (e.code === 'KeyM') toggleSound(); });
