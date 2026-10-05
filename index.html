@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Content-Security-Policy: only this site, Google Analytics (after consent) and Google Fonts may load anything -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; media-src 'self' data: blob:; base-uri 'self'; form-action 'none'; object-src 'none'">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="game/img/favicon-32.png">
+<link rel="apple-touch-icon" href="game/img/icon-180.png">
 <!-- Google tag (gtag.js), behind consent: nothing is loaded and no cookie is set until the visitor
      accepts (Consent Mode v2 defaults to denied; the gtag script itself is only fetched after "Aceptar") -->
 <script>
@@ -93,7 +98,7 @@
     <p class="touch">◀ ▶ move · ▲ jump · ▼ crouch<br>PUNCH · KICK · <b>back + KICK</b> = spinning back kick</p>
     <p class="keys">A/D move · W jump · S crouch · J punch · K kick<br><b>back + K</b> = spinning back kick · I info · M sound</p>
     <button class="go" type="button">CONTINUAR</button>
-    <p class="ver">podemosfighter v0.2.0</p>
+    <p class="ver">podemosfighter v0.2.1</p>
     <footer id="credits">Parodia sin afiliación política. Fotos (Wikimedia Commons), adaptadas al estilo sprite:
     Iglesias — Olaf Kosinsky, CC BY-SA 3.0 DE · Echenique — Pablo Ibáñez, CC BY-SA 2.0 ·
     Montero — Marta Jara (eldiario.es), CC BY-SA 3.0 ES · Errejón — Podemos Andalucía, CC BY 3.0. Argudo (aspirante) — cartel de campaña generado con IA, publicado en ABC (16/9/2026).
