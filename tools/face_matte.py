@@ -1,5 +1,5 @@
 """Cut a head (hair + face) out of a photo with a human-parsing model, for the fighters.
-usage: face_matte.py IMG x0 y0 x1 y1 OUT.png [--mirror] [--hair-below-chin 0.15]
+usage: face_matte.py IMG x0 y0 x1 y1 OUT.png [--mirror] [--hair-below-chin 0.15] [--hair]
 Long hair is cut a little below the chin so the head stays head-shaped. OUT faces RIGHT (use --mirror if the photo looks left)."""
 import sys
 import numpy as np, torch
@@ -24,10 +24,14 @@ if len(fy):                                                     # long hair: sto
 keep = ndimage.binary_dilation(keep, iterations=3)
 lab, n = ndimage.label(keep); keep = lab == 1 + np.argmax(ndimage.sum(keep, lab, range(1, n + 1)))
 a = Image.fromarray((keep * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.5))
-p = img.convert('RGBA'); p.putalpha(a); p = p.crop(p.getbbox())
+p = img.convert('RGBA'); p.putalpha(a); box = p.getbbox(); p = p.crop(box)
 if mirror: p = ImageOps.mirror(p)
+hair = Image.fromarray(((seg == 2) * 255).astype(np.uint8)).crop(box)          # --hair: the HAIR class, on the same crop/scale/placement
+if mirror: hair = ImageOps.mirror(hair)
 W, H = 132, 156; s = min(W / p.width, H / p.height); p = p.resize((round(p.width * s), round(p.height * s)), Image.LANCZOS)
 o = Image.new('RGBA', (W, H)); o.alpha_composite(p, ((W - p.width) // 2, H - p.height)); o.save(out)
+if '--hair' in args:                                            # for B/W sources (stylize_heads.GRADMAP): hair gets its own ramp
+    hm = Image.new('L', (W, H)); hm.paste(hair.resize(p.size, Image.LANCZOS), ((W - p.width) // 2, H - p.height)); hm.save(out.replace('.png', '_hair.png'))
 vis = np.array(img).astype(float); vis[~keep] = vis[~keep] * .35 + np.array([255, 0, 255]) * .65
 Image.fromarray(vis.astype(np.uint8)).resize((img.width * 360 // img.height, 360)).save(out.replace('.png', '_vis.jpg'))
 print('ok', out, img.size)
